@@ -112,18 +112,23 @@ jobs:
         run: |
           APP_PATH="apps/macos/CiderTogether/build/Build/Products/Release/CiderTogether.app"
 
-          # Create DMG folder structure
-          mkdir -p dmg_contents
-          cp -R "$APP_PATH" dmg_contents/
-          ln -s /Applications dmg_contents/Applications
+          # Install create-dmg for pretty DMGs
+          brew install create-dmg
 
-          # Create DMG
-          hdiutil create -volname "CiderTogether" \
-            -srcfolder dmg_contents \
-            -ov -format UDZO \
-            CiderTogether.dmg
-
-          rm -rf dmg_contents
+          # Create a styled DMG with drag-to-Applications
+          create-dmg \
+            --volname "CiderTogether" \
+            --volicon "$APP_PATH/Contents/Resources/AppIcon.icns" \
+            --window-pos 200 120 \
+            --window-size 660 400 \
+            --icon-size 160 \
+            --icon "CiderTogether.app" 180 170 \
+            --hide-extension "CiderTogether.app" \
+            --app-drop-link 480 170 \
+            --no-internet-enable \
+            CiderTogether.dmg \
+            "$APP_PATH" \
+          || true  # create-dmg returns non-zero if DMG exists
 
       - name: Sign DMG
         if: env.MACOS_CERTIFICATE != ''
