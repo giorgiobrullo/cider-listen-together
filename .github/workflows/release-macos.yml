@@ -36,6 +36,7 @@ jobs:
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: ". -> target"
+          cache-on-failure: true
 
       - name: Build Rust library
         run: |
