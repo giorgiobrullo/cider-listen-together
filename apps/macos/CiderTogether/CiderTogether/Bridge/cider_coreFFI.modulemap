@@ -1,0 +1,4 @@
+module cider_coreFFI {
+    header "cider_coreFFI.h"
+    export *
+}

@@ -1,0 +1,56 @@
+[package]
+name = "cider-core"
+version.workspace = true
+edition.workspace = true
+license-file.workspace = true
+description = "Core library for Cider Listen Together - sync music playback across peers"
+
+[lib]
+crate-type = ["lib", "cdylib", "staticlib"]
+
+[[bin]]
+name = "uniffi-bindgen"
+path = "src/bin/uniffi-bindgen.rs"
+
+[dependencies]
+# Async runtime
+tokio = { version = "1", features = ["full"] }
+
+# HTTP client for Cider API
+reqwest = { version = "0.12", features = ["json"] }
+
+# Serialization
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# P2P networking
+libp2p = { version = "0.54", features = [
+    "tokio",
+    "tcp",
+    "dns",
+    "noise",
+    "yamux",
+    "identify",
+    "relay",
+    "dcutr",
+    "gossipsub",
+    "kad",
+    "macros",
+    "quic",
+    "mdns",
+    "rsa",  # Required for IPFS bootstrap nodes that use RSA keys
+] }
+
+# FFI bindings
+uniffi = { version = "0.28", features = ["cli"] }
+
+# Error handling
+thiserror = "1"
+
+# Logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# Utilities
+futures = "0.3"
+parking_lot = "0.12"

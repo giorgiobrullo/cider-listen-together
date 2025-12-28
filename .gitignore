@@ -1,0 +1,36 @@
+# Rust
+/target/
+Cargo.lock
+
+# macOS
+.DS_Store
+*.xcuserstate
+xcuserdata/
+DerivedData/
+
+# Xcode
+*.pbxuser
+*.mode1v3
+*.mode2v3
+*.perspectivev3
+*.xccheckout
+*.moved-aside
+*.hmap
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Build artifacts
+*.dylib
+*.so
+*.dll
+*.a
+
+# Generated files (keep in repo for convenience, but can regenerate)
+# apps/macos/CiderTogether/CiderTogether/Bridge/
