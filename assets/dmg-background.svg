@@ -1,0 +1,78 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 660 400" width="1320" height="800">
+  <defs>
+    <!-- Dark gradient background -->
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1a1a1a"/>
+      <stop offset="50%" style="stop-color:#252525"/>
+      <stop offset="100%" style="stop-color:#1a1a1a"/>
+    </linearGradient>
+
+    <!-- Subtle glow for notes -->
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="2" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="660" height="400" fill="url(#bg)"/>
+
+  <!-- Subtle grid pattern -->
+  <g opacity="0.03">
+    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#fff" stroke-width="0.5"/>
+    </pattern>
+    <rect width="660" height="400" fill="url(#grid)"/>
+  </g>
+
+  <!-- Music notes scattered around - avoiding icon areas (app@180,170 and Apps@480,170 with 160px icons) -->
+  <g fill="#f97316" opacity="0.5" filter="url(#glow)">
+    <!-- Top left corner (far from app icon) -->
+    <text x="20" y="45" font-size="28" font-family="system-ui">♪</text>
+    <text x="55" y="75" font-size="20" font-family="system-ui">♫</text>
+    <text x="15" y="30" font-size="18" font-family="system-ui">♬</text>
+
+    <!-- Top right corner (far from Applications icon) -->
+    <text x="600" y="45" font-size="26" font-family="system-ui">♫</text>
+    <text x="635" y="75" font-size="22" font-family="system-ui">♪</text>
+    <text x="620" y="30" font-size="18" font-family="system-ui">♬</text>
+
+    <!-- Bottom left corner -->
+    <text x="20" y="350" font-size="22" font-family="system-ui">♫</text>
+    <text x="55" y="380" font-size="28" font-family="system-ui">♪</text>
+    <text x="30" y="320" font-size="18" font-family="system-ui">♬</text>
+
+    <!-- Bottom right corner -->
+    <text x="610" y="350" font-size="24" font-family="system-ui">♪</text>
+    <text x="635" y="320" font-size="20" font-family="system-ui">♫</text>
+    <text x="600" y="385" font-size="26" font-family="system-ui">♬</text>
+  </g>
+
+  <!-- Brighter accent notes in corners -->
+  <g fill="#fb923c" opacity="0.7" filter="url(#glow)">
+    <text x="80" y="25" font-size="16" font-family="system-ui">♪</text>
+    <text x="570" y="25" font-size="14" font-family="system-ui">♫</text>
+    <text x="80" y="390" font-size="16" font-family="system-ui">♬</text>
+    <text x="570" y="390" font-size="14" font-family="system-ui">♪</text>
+  </g>
+
+  <!-- Decorative sound waves in corners -->
+  <g stroke="#f97316" fill="none" opacity="0.3" stroke-width="2">
+    <!-- Top left corner -->
+    <path d="M 0 80 Q 30 70, 30 50 Q 30 30, 0 20"/>
+    <path d="M 0 90 Q 45 75, 45 50 Q 45 25, 0 10"/>
+
+    <!-- Bottom right corner -->
+    <path d="M 660 320 Q 630 330, 630 350 Q 630 370, 660 380"/>
+    <path d="M 660 310 Q 615 325, 615 350 Q 615 375, 660 390"/>
+  </g>
+
+  <!-- Subtle center hint arrow (between app@180 and Applications@480, at y=170) -->
+  <g opacity="0.2">
+    <path d="M 270 170 L 390 170" stroke="#fff" stroke-width="2" stroke-dasharray="8,4"/>
+    <path d="M 380 160 L 395 170 L 380 180" stroke="#fff" stroke-width="2" fill="none"/>
+  </g>
+</svg>

@@ -112,13 +112,17 @@ jobs:
         run: |
           APP_PATH="apps/macos/CiderTogether/build/Build/Products/Release/CiderTogether.app"
 
-          # Install create-dmg for pretty DMGs
-          brew install create-dmg
+          # Install tools
+          brew install create-dmg librsvg
+
+          # Convert SVG background to PNG
+          rsvg-convert -w 1320 -h 800 assets/dmg-background.svg -o dmg-background.png
 
           # Create a styled DMG with drag-to-Applications
           create-dmg \
             --volname "CiderTogether" \
             --volicon "$APP_PATH/Contents/Resources/AppIcon.icns" \
+            --background dmg-background.png \
             --window-pos 200 120 \
             --window-size 660 400 \
             --icon-size 160 \
