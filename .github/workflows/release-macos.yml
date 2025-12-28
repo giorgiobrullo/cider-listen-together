@@ -86,6 +86,12 @@ jobs:
           # Add rpath to binary if not present
           install_name_tool -add_rpath @executable_path/../Frameworks "$BINARY" 2>/dev/null || true
 
+          # Ad-hoc sign the dylib so it matches the app's signature
+          codesign --force --sign - "$FRAMEWORKS_DIR/libcider_core.dylib"
+
+          # Re-sign the entire app bundle to ensure consistency
+          codesign --force --deep --sign - "$APP_PATH"
+
       - name: Notarize app
         if: env.APPLE_ID != '' && env.NOTARIZATION_PASSWORD != ''
         env:
