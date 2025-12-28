@@ -11157,6 +11157,7 @@
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
 				HEADER_SEARCH_PATHS = "$(PROJECT_DIR)/CiderTogether/**";
+				INFOPLIST_FILE = CiderTogether/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "Cider Together";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
@@ -11219,6 +11220,7 @@
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
 				HEADER_SEARCH_PATHS = "$(PROJECT_DIR)/CiderTogether/**";
+				INFOPLIST_FILE = CiderTogether/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "Cider Together";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
