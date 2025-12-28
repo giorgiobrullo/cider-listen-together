@@ -29,10 +29,30 @@ pub async fn handle_network_event(
         NetworkEvent::PeerSubscribed { peer_id } => {
             info!("Peer subscribed to room: {}", peer_id);
 
-            // If we're the host, send current room state to the new peer
-            let room_guard = room.read().unwrap();
-            if let Some(state) = room_guard.state() {
+            // If we're the host, add them as unknown listener and send room state
+            let mut room_guard = room.write().unwrap();
+            if let Some(state) = room_guard.state_mut() {
                 if state.is_host() {
+                    // Add as unknown listener immediately (will be updated if they send JoinRequest)
+                    // Skip if it's ourselves or already known
+                    if peer_id != state.local_peer_id && !state.participants.contains_key(&peer_id) {
+                        info!("Adding unknown listener: {}", peer_id);
+                        state.add_participant(InternalParticipant {
+                            peer_id: peer_id.clone(),
+                            display_name: "?".to_string(),
+                            is_host: false,
+                        });
+
+                        // Notify UI about the new participant
+                        if let Some(cb) = callback.read().unwrap().as_ref() {
+                            cb.on_participant_joined(Participant {
+                                peer_id: peer_id.clone(),
+                                display_name: "?".to_string(),
+                                is_host: false,
+                            });
+                        }
+                    }
+
                     // Broadcast room state so new peer can join
                     if let Some(handle) = network_handle.read().unwrap().as_ref() {
                         let msg = SyncMessage::RoomState {
@@ -101,6 +121,14 @@ pub async fn handle_network_event(
     }
 }
 
+/// Check if a message sender is the current host
+fn is_from_host(from: &str, room: &Arc<RwLock<Room>>) -> bool {
+    let room_guard = room.read().unwrap();
+    room_guard.state()
+        .map(|s| s.host_peer_id == from)
+        .unwrap_or(false)
+}
+
 /// Handle a sync message from another peer
 pub async fn handle_sync_message(
     from: String,
@@ -124,51 +152,96 @@ pub async fn handle_sync_message(
             current_track,
             playback,
         } => {
-            handle_room_state(
-                room_code,
-                host_peer_id,
-                participants,
-                current_track,
-                playback,
-                room,
-                callback,
-                cider,
-                network_handle,
-                latency_tracker,
-                local_peer_id,
-            ).await;
+            // RoomState must come from the claimed host (or we're joining and don't know yet)
+            let is_joining = {
+                let r = room.read().unwrap();
+                matches!(&*r, Room::Joining { .. })
+            };
+            if is_joining || from == host_peer_id {
+                handle_room_state(
+                    room_code,
+                    host_peer_id,
+                    participants,
+                    current_track,
+                    playback,
+                    room,
+                    callback,
+                    cider,
+                    network_handle,
+                    latency_tracker,
+                    local_peer_id,
+                ).await;
+            } else {
+                warn!("Ignoring RoomState from non-host: {} (expected {})", from, host_peer_id);
+            }
         }
 
         SyncMessage::ParticipantJoined(participant) => {
-            handle_participant_joined(participant, room, callback);
+            // Only host can announce new participants
+            if is_from_host(&from, room) {
+                handle_participant_joined(participant, room, callback);
+            } else {
+                warn!("Ignoring ParticipantJoined from non-host: {}", from);
+            }
         }
 
         SyncMessage::ParticipantLeft { peer_id } => {
-            handle_participant_left(peer_id, room, callback);
+            // Only host can announce departures
+            if is_from_host(&from, room) {
+                handle_participant_left(peer_id, room, callback);
+            } else {
+                warn!("Ignoring ParticipantLeft from non-host: {}", from);
+            }
         }
 
         SyncMessage::TransferHost { new_host_peer_id } => {
-            handle_transfer_host(new_host_peer_id, room, callback);
+            // Only current host can transfer
+            if is_from_host(&from, room) {
+                handle_transfer_host(new_host_peer_id, room, callback);
+            } else {
+                warn!("Ignoring TransferHost from non-host: {}", from);
+            }
         }
 
         SyncMessage::Play { track, position_ms, .. } => {
-            handle_play(track, position_ms, room, cider).await;
+            // Only host controls playback
+            if is_from_host(&from, room) {
+                handle_play(track, position_ms, room, cider).await;
+            } else {
+                warn!("Ignoring Play from non-host: {}", from);
+            }
         }
 
         SyncMessage::Pause { position_ms, .. } => {
-            handle_pause(position_ms, room, cider).await;
+            if is_from_host(&from, room) {
+                handle_pause(position_ms, room, cider).await;
+            } else {
+                warn!("Ignoring Pause from non-host: {}", from);
+            }
         }
 
         SyncMessage::Seek { position_ms, .. } => {
-            handle_seek(position_ms, room, cider).await;
+            if is_from_host(&from, room) {
+                handle_seek(position_ms, room, cider).await;
+            } else {
+                warn!("Ignoring Seek from non-host: {}", from);
+            }
         }
 
         SyncMessage::TrackChange { track, position_ms, timestamp_ms } => {
-            handle_track_change(track, position_ms, timestamp_ms, room, callback, cider).await;
+            if is_from_host(&from, room) {
+                handle_track_change(track, position_ms, timestamp_ms, room, callback, cider).await;
+            } else {
+                warn!("Ignoring TrackChange from non-host: {}", from);
+            }
         }
 
         SyncMessage::Heartbeat { track_id: _, playback } => {
-            handle_heartbeat(playback, room, callback, cider, latency_tracker).await;
+            if is_from_host(&from, room) {
+                handle_heartbeat(playback, room, callback, cider, latency_tracker).await;
+            } else {
+                debug!("Ignoring Heartbeat from non-host: {}", from);
+            }
         }
 
         // Ping/Pong for latency measurement
@@ -206,9 +279,16 @@ fn handle_join_request(
     let mut room_guard = room.write().unwrap();
     if let Some(state) = room_guard.state_mut() {
         if state.is_host() {
-            info!("Join request from {} ({})", display_name, from);
+            // Check if this is a new participant or updating an existing "?" entry
+            let was_unknown = state.participants.get(&from)
+                .map(|p| p.display_name == "?")
+                .unwrap_or(false);
+            let is_new = !state.participants.contains_key(&from);
 
-            // Add participant
+            info!("Join request from {} ({}) - new: {}, was_unknown: {}",
+                  display_name, from, is_new, was_unknown);
+
+            // Add/update participant
             state.add_participant(InternalParticipant {
                 peer_id: from.clone(),
                 display_name: display_name.clone(),
@@ -217,11 +297,15 @@ fn handle_join_request(
 
             // Notify callback
             if let Some(cb) = callback.read().unwrap().as_ref() {
-                cb.on_participant_joined(Participant {
-                    peer_id: from.clone(),
-                    display_name: display_name.clone(),
-                    is_host: false,
-                });
+                // Only fire on_participant_joined for truly new participants
+                // (not for "?" → real name updates, those come via room_state_changed)
+                if is_new {
+                    cb.on_participant_joined(Participant {
+                        peer_id: from.clone(),
+                        display_name: display_name.clone(),
+                        is_host: false,
+                    });
+                }
                 cb.on_room_state_changed(RoomState::from(&*state));
             }
 
