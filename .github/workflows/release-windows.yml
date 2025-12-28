@@ -101,30 +101,34 @@ jobs:
         shell: pwsh
         run: |
           cd apps/windows/CiderTogether/CiderTogether/CiderTogether
-          dotnet publish -c Release -p:Platform=${{ matrix.platform }} -p:AppxBundle=Never -p:UapAppxPackageBuildMode=SideloadOnly -p:AppxPackageSigningEnabled=true -p:PackageCertificateThumbprint="$env:CERT_THUMBPRINT" -p:PackageCertificatePassword="$env:CERT_PASSWORD" -o publish
+          msbuild CiderTogether.csproj -t:Restore,Build -p:Configuration=Release -p:Platform=${{ matrix.platform }} -p:GenerateAppxPackageOnBuild=true -p:AppxBundle=Never -p:UapAppxPackageBuildMode=SideloadOnly -p:AppxPackageSigningEnabled=true -p:PackageCertificateThumbprint="$env:CERT_THUMBPRINT" -p:PackageCertificatePassword="$env:CERT_PASSWORD"
 
       - name: Find and rename MSIX
         id: msix
         shell: pwsh
         run: |
           $version = "${{ steps.version.outputs.version }}"
-          $msix = Get-ChildItem -Path "apps/windows/CiderTogether/CiderTogether/CiderTogether/publish" -Filter "*.msix" -Recurse | Select-Object -First 1
+          # MSIX is typically in bin/{Platform}/{Configuration}/AppPackages/
+          $searchPaths = @(
+            "apps/windows/CiderTogether/CiderTogether/CiderTogether/bin/${{ matrix.platform }}/Release",
+            "apps/windows/CiderTogether/CiderTogether/CiderTogether/AppPackages"
+          )
+          $msix = $null
+          foreach ($path in $searchPaths) {
+            if (Test-Path $path) {
+              $msix = Get-ChildItem -Path $path -Filter "*.msix" -Recurse | Select-Object -First 1
+              if ($msix) { break }
+            }
+          }
           if ($msix) {
             $newName = "CiderTogether_${version}_${{ matrix.platform }}.msix"
             Copy-Item $msix.FullName $newName
             echo "msix_path=$newName" >> $env:GITHUB_OUTPUT
           } else {
-            # Try finding msixbundle
-            $bundle = Get-ChildItem -Path "apps/windows/CiderTogether/CiderTogether/CiderTogether/publish" -Filter "*.msixbundle" -Recurse | Select-Object -First 1
-            if ($bundle) {
-              $newName = "CiderTogether_${version}_${{ matrix.platform }}.msixbundle"
-              Copy-Item $bundle.FullName $newName
-              echo "msix_path=$newName" >> $env:GITHUB_OUTPUT
-            } else {
-              # List what we have
-              Get-ChildItem -Path "apps/windows/CiderTogether/CiderTogether/CiderTogether/publish" -Recurse
-              throw "No MSIX or MSIXBUNDLE found"
-            }
+            # List what we have for debugging
+            Write-Host "Searching for MSIX files..."
+            Get-ChildItem -Path "apps/windows/CiderTogether/CiderTogether/CiderTogether" -Recurse -Include "*.msix","*.msixbundle" | ForEach-Object { Write-Host $_.FullName }
+            throw "No MSIX found"
           }
 
       - name: Attest MSIX
