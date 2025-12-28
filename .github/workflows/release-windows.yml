@@ -15,7 +15,7 @@ env:
 
 jobs:
   build-windows:
-    runs-on: windows-2025
+    runs-on: windows-latest
     permissions:
       id-token: write
       contents: read
@@ -51,8 +51,12 @@ jobs:
         with:
           dotnet-version: '10.0.x'
 
-      - name: Setup MSBuild
-        uses: microsoft/setup-msbuild@v2
+      - name: Install Visual Studio 2026 Build Tools
+        shell: pwsh
+        run: |
+          Write-Host "Installing VS 2026 Build Tools..."
+          choco install visualstudio2026buildtools --package-parameters "--add Microsoft.VisualStudio.Workload.ManagedDesktop --add Microsoft.VisualStudio.Workload.NetCrossPlat --add Microsoft.VisualStudio.Component.Windows11SDK.26100 --includeRecommended --quiet" -y --ignore-package-exit-codes=3010
+          Write-Host "VS 2026 Build Tools installation completed"
 
       - name: Get version
         id: version
@@ -102,10 +106,11 @@ jobs:
           dotnet restore
 
       - name: Build and package MSIX
-        shell: pwsh
+        shell: cmd
         run: |
-          cd apps/windows/CiderTogether/CiderTogether/CiderTogether
-          msbuild CiderTogether.csproj -t:Restore,Build -p:Configuration=Release -p:Platform=${{ matrix.platform }} -p:GenerateAppxPackageOnBuild=true -p:AppxBundle=Never -p:UapAppxPackageBuildMode=SideloadOnly -p:AppxPackageSigningEnabled=true -p:PackageCertificateThumbprint="$env:CERT_THUMBPRINT" -p:PackageCertificatePassword="$env:CERT_PASSWORD"
+          call "C:\Program Files (x86)\Microsoft Visual Studio\18\BuildTools\Common7\Tools\VsDevCmd.bat"
+          cd apps\windows\CiderTogether\CiderTogether\CiderTogether
+          msbuild CiderTogether.csproj -t:Restore,Build -p:Configuration=Release -p:Platform=${{ matrix.platform }} -p:GenerateAppxPackageOnBuild=true -p:AppxBundle=Never -p:UapAppxPackageBuildMode=SideloadOnly -p:AppxPackageSigningEnabled=true -p:PackageCertificateThumbprint="%CERT_THUMBPRINT%" -p:PackageCertificatePassword="%CERT_PASSWORD%"
 
       - name: Find and rename MSIX
         id: msix
