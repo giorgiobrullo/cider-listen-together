@@ -31,14 +31,13 @@ jobs:
       - name: Cache Rust dependencies
         uses: Swatinem/rust-cache@v2
         with:
-          workspaces: "cider-core -> target"
+          workspaces: ". -> target"
 
       - name: Build Rust library
         run: |
-          cd cider-core
-          cargo build --release
-          mkdir -p ../apps/macos/CiderTogether/Frameworks
-          cp target/release/libcider_core.dylib ../apps/macos/CiderTogether/Frameworks/
+          cargo build --release -p cider-core
+          mkdir -p apps/macos/CiderTogether/Frameworks
+          cp target/release/libcider_core.dylib apps/macos/CiderTogether/Frameworks/
 
       - name: Import signing certificate
         if: env.MACOS_CERTIFICATE != ''
