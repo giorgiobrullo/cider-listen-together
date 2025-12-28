@@ -1,12 +1,23 @@
-.PHONY: build build-release sign swift-bindings clean macos embed-dylib
+.PHONY: all build build-release sign swift-bindings csharp-bindings clean macos windows embed-dylib embed-dll xcode test
 
-# Paths
+# Paths - macOS
 DYLIB_SRC = target/release/libcider_core.dylib
 DYLIB_DST = apps/macos/CiderTogether/Frameworks/libcider_core.dylib
 XCODE_PROJECT = apps/macos/CiderTogether/CiderTogether.xcodeproj
 
-# Default: build release, sign, generate bindings, embed dylib
-all: build-release sign swift-bindings embed-dylib
+# Paths - Windows
+DLL_SRC = target/release/cider_core.dll
+DLL_DST = apps/windows/CiderTogether/CiderTogether/CiderTogether/Bridge/cider_core.dll
+
+# Default: build for current platform
+all: build-release
+ifeq ($(OS),Windows_NT)
+	$(MAKE) csharp-bindings embed-dll
+else
+	$(MAKE) sign swift-bindings embed-dylib
+endif
+	@echo ""
+	@echo "Done! Library rebuilt for current platform."
 
 # Build debug
 build:
@@ -15,6 +26,8 @@ build:
 # Build release
 build-release:
 	cargo build --release
+
+# === macOS ===
 
 # Fix install name and sign the dylib
 sign:
@@ -44,16 +57,37 @@ embed-dylib:
 # Build everything for macOS
 macos: build-release sign swift-bindings embed-dylib
 	@echo ""
-	@echo "Done! Now configure Xcode:"
-	@echo "1. Add Frameworks/libcider_core.dylib to the project"
-	@echo "2. Add it to 'Link Binary With Libraries'"
-	@echo "3. Add 'Copy Files' build phase -> Frameworks -> libcider_core.dylib"
-	@echo ""
-	@echo "Then open: $(XCODE_PROJECT)"
+	@echo "Done! Open Xcode: make xcode"
 
 # Open Xcode
 xcode:
 	open $(XCODE_PROJECT)
+
+# === Windows ===
+
+# Generate C# bindings
+csharp-bindings:
+	cargo run --bin uniffi-bindgen generate \
+		--library $(DLL_SRC) \
+		--language csharp \
+		--out-dir apps/windows/CiderTogether/CiderTogether/CiderTogether/Bridge
+
+# Copy DLL to Windows project
+embed-dll:
+	@echo "Copying DLL..."
+ifeq ($(OS),Windows_NT)
+	copy /Y "$(subst /,\,$(DLL_SRC))" "$(subst /,\,$(DLL_DST))"
+else
+	cp $(DLL_SRC) $(DLL_DST)
+endif
+	@echo "DLL ready at $(DLL_DST)"
+
+# Build everything for Windows
+windows: build-release csharp-bindings embed-dll
+	@echo ""
+	@echo "Done! Open Visual Studio: start apps/windows/CiderTogether/CiderTogether.sln"
+
+# === Common ===
 
 # Clean
 clean:

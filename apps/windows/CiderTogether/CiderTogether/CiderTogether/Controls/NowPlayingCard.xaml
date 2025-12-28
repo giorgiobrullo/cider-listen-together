@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="utf-8"?>
+<UserControl
+    x:Class="CiderTogether.Controls.NowPlayingCard"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <StackPanel Spacing="12" HorizontalAlignment="Center">
+        <!-- Album Artwork -->
+        <Grid Width="180" Height="180">
+            <Border CornerRadius="8"
+                    Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                    BorderThickness="1">
+                <Grid>
+                    <!-- Artwork Image -->
+                    <Image x:Name="ArtworkImage"
+                           Stretch="UniformToFill"/>
+
+                    <!-- Placeholder when no artwork -->
+                    <FontIcon x:Name="PlaceholderIcon"
+                              Glyph="&#xE8D6;"
+                              FontSize="48"
+                              Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                              HorizontalAlignment="Center"
+                              VerticalAlignment="Center"
+                              Visibility="Visible"/>
+                </Grid>
+            </Border>
+        </Grid>
+
+        <!-- Track Info -->
+        <StackPanel x:Name="TrackInfoPanel"
+                    Spacing="6"
+                    Width="280"
+                    Visibility="Collapsed">
+            <StackPanel Spacing="2">
+                <TextBlock x:Name="TrackNameText"
+                           Style="{StaticResource BodyStrongTextBlockStyle}"
+                           TextAlignment="Center"
+                           TextTrimming="CharacterEllipsis"
+                           MaxLines="1"/>
+                <TextBlock x:Name="ArtistNameText"
+                           Style="{StaticResource CaptionTextBlockStyle}"
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                           TextAlignment="Center"
+                           TextTrimming="CharacterEllipsis"
+                           MaxLines="1"/>
+            </StackPanel>
+
+            <!-- Progress Bar -->
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <ProgressBar x:Name="TrackProgress"
+                             Grid.Row="0"
+                             Minimum="0"
+                             Maximum="100"
+                             Value="0"
+                             Height="4"
+                             CornerRadius="2"
+                             AutomationProperties.Name="Track progress"/>
+
+                <Grid Grid.Row="1" Margin="0,4,0,0">
+                    <TextBlock x:Name="CurrentTimeText"
+                               Text="0:00"
+                               Style="{StaticResource CaptionTextBlockStyle}"
+                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                               FontFamily="Consolas"
+                               HorizontalAlignment="Left"/>
+                    <TextBlock x:Name="DurationText"
+                               Text="0:00"
+                               Style="{StaticResource CaptionTextBlockStyle}"
+                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                               FontFamily="Consolas"
+                               HorizontalAlignment="Right"/>
+                </Grid>
+            </Grid>
+        </StackPanel>
+
+        <!-- No Track Playing -->
+        <StackPanel x:Name="NoTrackPanel"
+                    Spacing="2"
+                    Visibility="Visible">
+            <TextBlock Text="Not Playing"
+                       Style="{StaticResource BodyStrongTextBlockStyle}"
+                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                       HorizontalAlignment="Center"/>
+            <TextBlock x:Name="NoTrackSubtext"
+                       Text="Play something in Cider"
+                       Style="{StaticResource CaptionTextBlockStyle}"
+                       Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                       HorizontalAlignment="Center"/>
+        </StackPanel>
+    </StackPanel>
+</UserControl>

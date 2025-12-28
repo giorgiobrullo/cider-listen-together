@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "CiderTogether (Package)": {
+      "commandName": "MsixPackage"
+    },
+    "CiderTogether (Unpackaged)": {
+      "commandName": "Project"
+    }
+  }
+}

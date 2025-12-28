@@ -32,5 +32,24 @@ DerivedData/
 *.dll
 *.a
 
+# Windows / .NET
+**/bin/
+**/obj/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+.vs/
+*.appx
+*.appxbundle
+*.appxupload
+*.msix
+*.msixbundle
+*.msixupload
+*.cer
+*.pfx
+AppPackages/
+nul
+
 # Generated files (keep in repo for convenience, but can regenerate)
 # apps/macos/CiderTogether/CiderTogether/Bridge/

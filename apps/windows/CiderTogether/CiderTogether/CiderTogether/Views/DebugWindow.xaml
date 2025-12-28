@@ -1,0 +1,239 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Window
+    x:Class="CiderTogether.Views.DebugWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    Title="Debug Info">
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="32"/> <!-- Title bar -->
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- Custom title bar -->
+        <Grid x:Name="AppTitleBar" Grid.Row="0" VerticalAlignment="Stretch">
+            <TextBlock Text="Debug Info"
+                       VerticalAlignment="Center"
+                       Margin="12,0,0,0"
+                       Style="{StaticResource CaptionTextBlockStyle}"/>
+        </Grid>
+
+        <!-- Content -->
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+            <StackPanel Padding="20" Spacing="16">
+
+                <!-- Connection section -->
+                <Border Style="{StaticResource GlassCardStyle}">
+                    <StackPanel Spacing="12">
+                        <TextBlock Text="Connection"
+                                   FontWeight="SemiBold"
+                                   FontSize="14"/>
+
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition/>
+                                <RowDefinition/>
+                                <RowDefinition/>
+                                <RowDefinition/>
+                                <RowDefinition/>
+                                <RowDefinition/>
+                                <RowDefinition/>
+                            </Grid.RowDefinitions>
+
+                            <TextBlock Grid.Row="0" Grid.Column="0" Text="Role"
+                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}" Margin="0,0,20,4"/>
+                            <TextBlock x:Name="RoleValue" Grid.Row="0" Grid.Column="1"
+                                       FontFamily="Consolas" HorizontalAlignment="Right"/>
+
+                            <TextBlock Grid.Row="1" Grid.Column="0" Text="In Room"
+                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}" Margin="0,0,20,4"/>
+                            <TextBlock x:Name="InRoomValue" Grid.Row="1" Grid.Column="1"
+                                       FontFamily="Consolas" HorizontalAlignment="Right"/>
+
+                            <TextBlock Grid.Row="2" Grid.Column="0" Text="Cider Connected"
+                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}" Margin="0,0,20,4"/>
+                            <TextBlock x:Name="CiderConnectedValue" Grid.Row="2" Grid.Column="1"
+                                       FontFamily="Consolas" HorizontalAlignment="Right"/>
+
+                            <TextBlock Grid.Row="3" Grid.Column="0" Text="Room Code"
+                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}" Margin="0,0,20,4"
+                                       x:Name="RoomCodeLabel" Visibility="Collapsed"/>
+                            <TextBlock x:Name="RoomCodeValue" Grid.Row="3" Grid.Column="1"
+                                       FontFamily="Consolas" HorizontalAlignment="Right" Visibility="Collapsed"/>
+
+                            <TextBlock Grid.Row="4" Grid.Column="0" Text="Participants"
+                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}" Margin="0,0,20,4"
+                                       x:Name="ParticipantsLabel" Visibility="Collapsed"/>
+                            <TextBlock x:Name="ParticipantsValue" Grid.Row="4" Grid.Column="1"
+                                       FontFamily="Consolas" HorizontalAlignment="Right" Visibility="Collapsed"/>
+
+                            <TextBlock Grid.Row="5" Grid.Column="0" Text="Local Peer ID"
+                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}" Margin="0,0,20,4"
+                                       x:Name="LocalPeerLabel" Visibility="Collapsed"/>
+                            <TextBlock x:Name="LocalPeerValue" Grid.Row="5" Grid.Column="1"
+                                       FontFamily="Consolas" HorizontalAlignment="Right" Visibility="Collapsed"/>
+
+                            <TextBlock Grid.Row="6" Grid.Column="0" Text="Host Peer ID"
+                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}" Margin="0,0,20,4"
+                                       x:Name="HostPeerLabel" Visibility="Collapsed"/>
+                            <TextBlock x:Name="HostPeerValue" Grid.Row="6" Grid.Column="1"
+                                       FontFamily="Consolas" HorizontalAlignment="Right" Visibility="Collapsed"/>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+                <!-- Sync Status section -->
+                <Border x:Name="SyncStatusSection" Style="{StaticResource GlassCardStyle}">
+                    <StackPanel Spacing="12">
+                        <TextBlock Text="Sync Status"
+                                   FontWeight="SemiBold"
+                                   FontSize="14"/>
+
+                        <StackPanel x:Name="SyncStatusContent" Spacing="8">
+                            <!-- Drift -->
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="Drift" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                <TextBlock x:Name="DriftValue" Grid.Column="1" FontFamily="Consolas" HorizontalAlignment="Right"/>
+                            </Grid>
+
+                            <!-- Latency -->
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="Latency" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                <TextBlock x:Name="LatencyValue" Grid.Column="1" FontFamily="Consolas" HorizontalAlignment="Right"/>
+                            </Grid>
+
+                            <!-- Seek Offset -->
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="Seek Offset" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                <TextBlock x:Name="SeekOffsetValue" Grid.Column="1" FontFamily="Consolas" HorizontalAlignment="Right"/>
+                            </Grid>
+
+                            <!-- Calibration Status -->
+                            <StackPanel x:Name="CalibrationSection" Spacing="4" Visibility="Collapsed">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Text="Calibration" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                    <Border Grid.Column="1" HorizontalAlignment="Right"
+                                            Background="#33FF9800" CornerRadius="4" Padding="6,2">
+                                        <TextBlock Text="PENDING" FontFamily="Consolas" FontSize="11" Foreground="#FF9800"/>
+                                    </Border>
+                                </Grid>
+                                <TextBlock x:Name="CalibrationFormula" FontFamily="Consolas" FontSize="11"
+                                           Foreground="{ThemeResource TextFillColorSecondaryBrush}" Margin="8,0,0,0"/>
+                                <TextBlock x:Name="CalibrationValue" FontFamily="Consolas" FontSize="12"
+                                           Foreground="#FF9800" Margin="8,0,0,0"/>
+                            </StackPanel>
+
+                            <!-- Last Heartbeat -->
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="Last Heartbeat" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                <TextBlock x:Name="HeartbeatValue" Grid.Column="1" FontFamily="Consolas" HorizontalAlignment="Right"/>
+                            </Grid>
+
+                            <!-- Quality -->
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="Quality" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" HorizontalAlignment="Right">
+                                    <Ellipse x:Name="QualityIndicator" Width="8" Height="8"/>
+                                    <TextBlock x:Name="QualityValue" FontFamily="Consolas"/>
+                                </StackPanel>
+                            </Grid>
+
+                            <!-- Calibration History -->
+                            <StackPanel x:Name="CalibrationHistorySection" Spacing="4" Visibility="Collapsed">
+                                <Border Height="1" Background="{ThemeResource DividerStrokeColorDefaultBrush}" Margin="0,8"/>
+                                <TextBlock Text="Calibration History" Foreground="{ThemeResource TextFillColorSecondaryBrush}" FontSize="12"/>
+                                <ItemsControl x:Name="CalibrationHistoryList"/>
+                            </StackPanel>
+                        </StackPanel>
+
+                        <TextBlock x:Name="SyncStatusWaiting" Text="Waiting for sync data..."
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                   Visibility="Collapsed"/>
+
+                        <TextBlock x:Name="SyncStatusHostMessage" Text="Sync status is only available for listeners"
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                   Visibility="Collapsed"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- Now Playing section -->
+                <Border x:Name="NowPlayingSection" Style="{StaticResource GlassCardStyle}" Visibility="Collapsed">
+                    <StackPanel Spacing="12">
+                        <TextBlock Text="Now Playing"
+                                   FontWeight="SemiBold"
+                                   FontSize="14"/>
+
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition/>
+                                <RowDefinition/>
+                                <RowDefinition/>
+                                <RowDefinition/>
+                                <RowDefinition/>
+                            </Grid.RowDefinitions>
+
+                            <TextBlock Grid.Row="0" Grid.Column="0" Text="Track"
+                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}" Margin="0,0,20,4"/>
+                            <TextBlock x:Name="TrackValue" Grid.Row="0" Grid.Column="1"
+                                       FontFamily="Consolas" HorizontalAlignment="Right" TextTrimming="CharacterEllipsis"/>
+
+                            <TextBlock Grid.Row="1" Grid.Column="0" Text="Artist"
+                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}" Margin="0,0,20,4"/>
+                            <TextBlock x:Name="ArtistValue" Grid.Row="1" Grid.Column="1"
+                                       FontFamily="Consolas" HorizontalAlignment="Right" TextTrimming="CharacterEllipsis"/>
+
+                            <TextBlock Grid.Row="2" Grid.Column="0" Text="Song ID"
+                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}" Margin="0,0,20,4"/>
+                            <TextBlock x:Name="SongIdValue" Grid.Row="2" Grid.Column="1"
+                                       FontFamily="Consolas" HorizontalAlignment="Right"/>
+
+                            <TextBlock Grid.Row="3" Grid.Column="0" Text="Position"
+                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}" Margin="0,0,20,4"/>
+                            <TextBlock x:Name="PositionValue" Grid.Row="3" Grid.Column="1"
+                                       FontFamily="Consolas" HorizontalAlignment="Right"/>
+
+                            <TextBlock Grid.Row="4" Grid.Column="0" Text="Playing"
+                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}" Margin="0,0,20,4"/>
+                            <TextBlock x:Name="PlayingValue" Grid.Row="4" Grid.Column="1"
+                                       FontFamily="Consolas" HorizontalAlignment="Right"/>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+            </StackPanel>
+        </ScrollViewer>
+    </Grid>
+</Window>

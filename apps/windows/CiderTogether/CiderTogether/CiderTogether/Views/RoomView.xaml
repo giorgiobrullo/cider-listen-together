@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Page
+    x:Class="CiderTogether.Views.RoomView"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:CiderTogether.Controls">
+
+    <StackPanel Spacing="20" HorizontalAlignment="Center">
+        <!-- Cider Disconnected Banner -->
+        <InfoBar x:Name="CiderDisconnectedBanner"
+                 IsOpen="False"
+                 Severity="Warning"
+                 Title="Cider disconnected"
+                 Message="Retrying..."
+                 IsClosable="False"
+                 MaxWidth="280">
+            <InfoBar.ActionButton>
+                <Button Content="Retry Now" Click="RetryConnection_Click"/>
+            </InfoBar.ActionButton>
+        </InfoBar>
+
+        <!-- Room Code -->
+        <Button x:Name="RoomCodeButton"
+                HorizontalAlignment="Center"
+                Click="CopyRoomCode_Click"
+                ToolTipService.ToolTip="Copy room code"
+                AutomationProperties.Name="Copy room code">
+            <StackPanel Orientation="Horizontal" Spacing="8">
+                <TextBlock x:Name="RoomCodeText"
+                           Style="{StaticResource SubtitleTextBlockStyle}"
+                           FontFamily="Consolas"/>
+                <FontIcon x:Name="CopyIcon"
+                          Glyph="&#xE8C8;"
+                          FontSize="14"
+                          Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+            </StackPanel>
+        </Button>
+
+        <!-- Now Playing Card -->
+        <controls:NowPlayingCard x:Name="NowPlayingCardControl"/>
+
+        <!-- Playback Controls (Host Only) -->
+        <StackPanel x:Name="PlaybackControls"
+                    Orientation="Horizontal"
+                    Spacing="20"
+                    HorizontalAlignment="Center"
+                    Visibility="Collapsed">
+            <Button Click="Previous_Click"
+                    ToolTipService.ToolTip="Previous"
+                    AutomationProperties.Name="Previous track"
+                    Background="Transparent"
+                    BorderThickness="0"
+                    Padding="8">
+                <FontIcon Glyph="&#xE892;" FontSize="18"/>
+            </Button>
+            <Button x:Name="PlayPauseButton"
+                    Click="PlayPause_Click"
+                    ToolTipService.ToolTip="Play/Pause"
+                    AutomationProperties.Name="Play or Pause"
+                    Background="Transparent"
+                    BorderThickness="0"
+                    Padding="12">
+                <FontIcon x:Name="PlayPauseIcon"
+                          Glyph="&#xE768;"
+                          FontSize="24"/>
+            </Button>
+            <Button Click="Next_Click"
+                    ToolTipService.ToolTip="Next"
+                    AutomationProperties.Name="Next track"
+                    Background="Transparent"
+                    BorderThickness="0"
+                    Padding="8">
+                <FontIcon Glyph="&#xE893;" FontSize="18"/>
+            </Button>
+        </StackPanel>
+
+        <!-- Participants -->
+        <StackPanel Spacing="6" MaxWidth="300">
+            <TextBlock x:Name="ParticipantsHeader"
+                       Text="Listening (0)"
+                       Style="{StaticResource CaptionTextBlockStyle}"
+                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+
+            <ItemsRepeater x:Name="ParticipantsPanel">
+                <ItemsRepeater.Layout>
+                    <UniformGridLayout Orientation="Horizontal"
+                                       MinItemWidth="120"
+                                       MinItemHeight="36"
+                                       MinRowSpacing="6"
+                                       MinColumnSpacing="6"
+                                       ItemsStretch="None"/>
+                </ItemsRepeater.Layout>
+            </ItemsRepeater>
+        </StackPanel>
+
+        <!-- Error Dialog -->
+        <ContentDialog x:Name="ErrorDialog"
+                       Title="Error"
+                       CloseButtonText="OK"
+                       DefaultButton="Close"/>
+    </StackPanel>
+</Page>

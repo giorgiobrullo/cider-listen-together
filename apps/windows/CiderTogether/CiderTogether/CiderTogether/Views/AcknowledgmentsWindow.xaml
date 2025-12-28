@@ -1,0 +1,207 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Window
+    x:Class="CiderTogether.Views.AcknowledgmentsWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    Title="Acknowledgments">
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="32"/> <!-- Title bar -->
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- Custom title bar -->
+        <Grid x:Name="AppTitleBar" Grid.Row="0" VerticalAlignment="Stretch">
+            <TextBlock Text="Acknowledgments"
+                       VerticalAlignment="Center"
+                       Margin="12,0,0,0"
+                       Style="{StaticResource CaptionTextBlockStyle}"/>
+        </Grid>
+
+        <!-- Content -->
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+            <StackPanel Padding="24" Spacing="24">
+                <!-- Header -->
+                <StackPanel Spacing="8">
+                    <TextBlock Text="Acknowledgments"
+                               FontSize="24"
+                               FontWeight="Bold"/>
+                    <TextBlock Text="Cider Together uses the following open source libraries:"
+                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                </StackPanel>
+
+                <!-- Divider -->
+                <Border Height="1" Background="{ThemeResource DividerStrokeColorDefaultBrush}"/>
+
+                <!-- Libraries -->
+                <StackPanel Spacing="16">
+                    <!-- libp2p -->
+                    <Border Style="{StaticResource GlassCardStyle}">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0" Spacing="4">
+                                <TextBlock Text="libp2p" FontWeight="SemiBold"/>
+                                <HyperlinkButton Content="github.com/libp2p/rust-libp2p"
+                                                 NavigateUri="https://github.com/libp2p/rust-libp2p"
+                                                 Padding="0"
+                                                 FontSize="12"/>
+                            </StackPanel>
+                            <HyperlinkButton Grid.Column="1"
+                                             NavigateUri="https://opensource.org/licenses/MIT"
+                                             VerticalAlignment="Top">
+                                <Border Background="{ThemeResource CardBackgroundFillColorSecondaryBrush}"
+                                        CornerRadius="4"
+                                        Padding="8,4">
+                                    <TextBlock Text="MIT" FontSize="12"/>
+                                </Border>
+                            </HyperlinkButton>
+                        </Grid>
+                    </Border>
+
+                    <!-- UniFFI -->
+                    <Border Style="{StaticResource GlassCardStyle}">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0" Spacing="4">
+                                <TextBlock Text="UniFFI" FontWeight="SemiBold"/>
+                                <HyperlinkButton Content="github.com/mozilla/uniffi-rs"
+                                                 NavigateUri="https://github.com/mozilla/uniffi-rs"
+                                                 Padding="0"
+                                                 FontSize="12"/>
+                            </StackPanel>
+                            <HyperlinkButton Grid.Column="1"
+                                             NavigateUri="https://opensource.org/licenses/MPL-2.0"
+                                             VerticalAlignment="Top">
+                                <Border Background="{ThemeResource CardBackgroundFillColorSecondaryBrush}"
+                                        CornerRadius="4"
+                                        Padding="8,4">
+                                    <TextBlock Text="MPL-2.0" FontSize="12"/>
+                                </Border>
+                            </HyperlinkButton>
+                        </Grid>
+                    </Border>
+
+                    <!-- Tokio -->
+                    <Border Style="{StaticResource GlassCardStyle}">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0" Spacing="4">
+                                <TextBlock Text="Tokio" FontWeight="SemiBold"/>
+                                <HyperlinkButton Content="github.com/tokio-rs/tokio"
+                                                 NavigateUri="https://github.com/tokio-rs/tokio"
+                                                 Padding="0"
+                                                 FontSize="12"/>
+                            </StackPanel>
+                            <HyperlinkButton Grid.Column="1"
+                                             NavigateUri="https://opensource.org/licenses/MIT"
+                                             VerticalAlignment="Top">
+                                <Border Background="{ThemeResource CardBackgroundFillColorSecondaryBrush}"
+                                        CornerRadius="4"
+                                        Padding="8,4">
+                                    <TextBlock Text="MIT" FontSize="12"/>
+                                </Border>
+                            </HyperlinkButton>
+                        </Grid>
+                    </Border>
+
+                    <!-- Serde -->
+                    <Border Style="{StaticResource GlassCardStyle}">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0" Spacing="4">
+                                <TextBlock Text="Serde" FontWeight="SemiBold"/>
+                                <HyperlinkButton Content="github.com/serde-rs/serde"
+                                                 NavigateUri="https://github.com/serde-rs/serde"
+                                                 Padding="0"
+                                                 FontSize="12"/>
+                            </StackPanel>
+                            <HyperlinkButton Grid.Column="1"
+                                             NavigateUri="https://opensource.org/licenses/MIT"
+                                             VerticalAlignment="Top">
+                                <Border Background="{ThemeResource CardBackgroundFillColorSecondaryBrush}"
+                                        CornerRadius="4"
+                                        Padding="8,4">
+                                    <TextBlock Text="MIT / Apache-2.0" FontSize="12"/>
+                                </Border>
+                            </HyperlinkButton>
+                        </Grid>
+                    </Border>
+
+                    <!-- Reqwest -->
+                    <Border Style="{StaticResource GlassCardStyle}">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0" Spacing="4">
+                                <TextBlock Text="Reqwest" FontWeight="SemiBold"/>
+                                <HyperlinkButton Content="github.com/seanmonstar/reqwest"
+                                                 NavigateUri="https://github.com/seanmonstar/reqwest"
+                                                 Padding="0"
+                                                 FontSize="12"/>
+                            </StackPanel>
+                            <HyperlinkButton Grid.Column="1"
+                                             NavigateUri="https://opensource.org/licenses/MIT"
+                                             VerticalAlignment="Top">
+                                <Border Background="{ThemeResource CardBackgroundFillColorSecondaryBrush}"
+                                        CornerRadius="4"
+                                        Padding="8,4">
+                                    <TextBlock Text="MIT / Apache-2.0" FontSize="12"/>
+                                </Border>
+                            </HyperlinkButton>
+                        </Grid>
+                    </Border>
+
+                    <!-- H.NotifyIcon -->
+                    <Border Style="{StaticResource GlassCardStyle}">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0" Spacing="4">
+                                <TextBlock Text="H.NotifyIcon" FontWeight="SemiBold"/>
+                                <HyperlinkButton Content="github.com/HavenDV/H.NotifyIcon"
+                                                 NavigateUri="https://github.com/HavenDV/H.NotifyIcon"
+                                                 Padding="0"
+                                                 FontSize="12"/>
+                            </StackPanel>
+                            <HyperlinkButton Grid.Column="1"
+                                             NavigateUri="https://opensource.org/licenses/MIT"
+                                             VerticalAlignment="Top">
+                                <Border Background="{ThemeResource CardBackgroundFillColorSecondaryBrush}"
+                                        CornerRadius="4"
+                                        Padding="8,4">
+                                    <TextBlock Text="MIT" FontSize="12"/>
+                                </Border>
+                            </HyperlinkButton>
+                        </Grid>
+                    </Border>
+                </StackPanel>
+
+                <!-- Divider -->
+                <Border Height="1" Background="{ThemeResource DividerStrokeColorDefaultBrush}"/>
+
+                <!-- License notice -->
+                <TextBlock Text="This software is proprietary. All rights reserved.&#x0a;See individual library licenses for their respective terms."
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                           FontSize="12"
+                           TextWrapping="Wrap"/>
+            </StackPanel>
+        </ScrollViewer>
+    </Grid>
+</Window>
