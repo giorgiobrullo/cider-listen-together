@@ -37,6 +37,7 @@ jobs:
         run: |
           cd cider-core
           cargo build --release
+          mkdir -p ../apps/macos/CiderTogether/Frameworks
           cp target/release/libcider_core.dylib ../apps/macos/CiderTogether/Frameworks/
 
       - name: Import signing certificate
