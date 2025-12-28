@@ -33,23 +33,11 @@ jobs:
         with:
           workspaces: "cider-core -> target"
 
-      - name: Build Rust library (arm64)
+      - name: Build Rust library
         run: |
           cd cider-core
-          cargo build --release --target aarch64-apple-darwin
-
-      - name: Build Rust library (x86_64)
-        run: |
-          rustup target add x86_64-apple-darwin
-          cd cider-core
-          cargo build --release --target x86_64-apple-darwin
-
-      - name: Create universal binary
-        run: |
-          lipo -create \
-            cider-core/target/aarch64-apple-darwin/release/libcider_core.dylib \
-            cider-core/target/x86_64-apple-darwin/release/libcider_core.dylib \
-            -output apps/macos/CiderTogether/Frameworks/libcider_core.dylib
+          cargo build --release
+          cp target/release/libcider_core.dylib ../apps/macos/CiderTogether/Frameworks/
 
       - name: Import signing certificate
         if: env.MACOS_CERTIFICATE != ''
