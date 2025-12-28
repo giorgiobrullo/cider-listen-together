@@ -78,27 +78,27 @@ jobs:
           $content = $content -replace 'Version="[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+"', "Version=`"$version.0`""
           Set-Content $manifestPath $content
 
-      - name: Import or create certificate
+      - name: Import certificate
+        if: env.WINDOWS_CERTIFICATE != ''
         shell: pwsh
         run: |
-          if ($env:WINDOWS_CERTIFICATE) {
-            # Use stored certificate from secrets
-            $certBytes = [Convert]::FromBase64String($env:WINDOWS_CERTIFICATE)
-            [IO.File]::WriteAllBytes("apps/windows/CiderTogether/CiderTogether/CiderTogether.pfx", $certBytes)
-            $password = ConvertTo-SecureString -String $env:WINDOWS_CERTIFICATE_PASSWORD -Force -AsPlainText
-            $cert = Import-PfxCertificate -FilePath "apps/windows/CiderTogether/CiderTogether/CiderTogether.pfx" -CertStoreLocation "Cert:\CurrentUser\My" -Password $password
-            Export-Certificate -Cert $cert -FilePath "CiderTogether.cer"
-            echo "CERT_THUMBPRINT=$($cert.Thumbprint)" >> $env:GITHUB_ENV
-            echo "CERT_PASSWORD=$env:WINDOWS_CERTIFICATE_PASSWORD" >> $env:GITHUB_ENV
-          } else {
-            # Create self-signed certificate for testing
-            $cert = New-SelfSignedCertificate -Type Custom -Subject "CN=Giorgio Maria Brullo" -KeyUsage DigitalSignature -FriendlyName "CiderTogether Dev Certificate" -CertStoreLocation "Cert:\CurrentUser\My" -TextExtension @("2.5.29.37={text}1.3.6.1.5.5.7.3.3", "2.5.29.19={text}")
-            $password = ConvertTo-SecureString -String "CiderTogether123!" -Force -AsPlainText
-            Export-PfxCertificate -Cert $cert -FilePath "apps/windows/CiderTogether/CiderTogether/CiderTogether.pfx" -Password $password
-            Export-Certificate -Cert $cert -FilePath "CiderTogether.cer"
-            echo "CERT_THUMBPRINT=$($cert.Thumbprint)" >> $env:GITHUB_ENV
-            echo "CERT_PASSWORD=CiderTogether123!" >> $env:GITHUB_ENV
-          }
+          $certBytes = [Convert]::FromBase64String($env:WINDOWS_CERTIFICATE)
+          [IO.File]::WriteAllBytes("apps/windows/CiderTogether/CiderTogether/CiderTogether.pfx", $certBytes)
+          $password = ConvertTo-SecureString -String $env:WINDOWS_CERTIFICATE_PASSWORD -Force -AsPlainText
+          $cert = Import-PfxCertificate -FilePath "apps/windows/CiderTogether/CiderTogether/CiderTogether.pfx" -CertStoreLocation "Cert:\CurrentUser\My" -Password $password
+
+          # Debug: print cert details
+          Write-Host "Certificate Subject: $($cert.Subject)"
+          Write-Host "Certificate Thumbprint: $($cert.Thumbprint)"
+          Write-Host "Certificate NotBefore: $($cert.NotBefore)"
+          Write-Host "Certificate NotAfter: $($cert.NotAfter)"
+          Write-Host "Certificate HasPrivateKey: $($cert.HasPrivateKey)"
+          $eku = $cert.Extensions | Where-Object { $_.Oid.FriendlyName -eq "Enhanced Key Usage" }
+          if ($eku) { Write-Host "Certificate EKU: $($eku.Format($true))" }
+
+          Export-Certificate -Cert $cert -FilePath "CiderTogether.cer"
+          echo "CERT_THUMBPRINT=$($cert.Thumbprint)" >> $env:GITHUB_ENV
+          echo "CERT_PASSWORD=$env:WINDOWS_CERTIFICATE_PASSWORD" >> $env:GITHUB_ENV
 
       - name: Restore dependencies
         run: |
@@ -111,7 +111,11 @@ jobs:
           call "C:\Program Files (x86)\Microsoft Visual Studio\18\BuildTools\Common7\Tools\VsDevCmd.bat"
           set MSBuildSDKsPath=%DOTNET_ROOT%\sdk\10.0.101\Sdks
           cd apps\windows\CiderTogether\CiderTogether\CiderTogether
-          msbuild CiderTogether.csproj -t:Restore,Build -p:Configuration=Release -p:Platform=${{ matrix.platform }} -p:GenerateAppxPackageOnBuild=true -p:AppxBundle=Never -p:UapAppxPackageBuildMode=SideloadOnly -p:AppxPackageSigningEnabled=true -p:PackageCertificateThumbprint="%CERT_THUMBPRINT%" -p:PackageCertificatePassword="%CERT_PASSWORD%"
+          if "%CERT_THUMBPRINT%"=="" (
+            msbuild CiderTogether.csproj -t:Restore,Build -p:Configuration=Release -p:Platform=${{ matrix.platform }} -p:GenerateAppxPackageOnBuild=true -p:AppxBundle=Never -p:UapAppxPackageBuildMode=SideloadOnly -p:AppxPackageSigningEnabled=false
+          ) else (
+            msbuild CiderTogether.csproj -t:Restore,Build -p:Configuration=Release -p:Platform=${{ matrix.platform }} -p:GenerateAppxPackageOnBuild=true -p:AppxBundle=Never -p:UapAppxPackageBuildMode=SideloadOnly -p:AppxPackageSigningEnabled=true -p:PackageCertificateThumbprint="%CERT_THUMBPRINT%" -p:PackageCertificatePassword="%CERT_PASSWORD%"
+          )
 
       - name: Find and rename MSIX
         id: msix
@@ -153,6 +157,7 @@ jobs:
           path: ${{ steps.msix.outputs.msix_path }}
 
       - name: Upload certificate artifact
+        if: env.WINDOWS_CERTIFICATE != ''
         uses: actions/upload-artifact@v4
         with:
           name: CiderTogether-certificate
@@ -174,6 +179,7 @@ jobs:
 
       - name: Download certificate
         uses: actions/download-artifact@v4
+        continue-on-error: true
         with:
           name: CiderTogether-certificate
 
@@ -193,6 +199,7 @@ jobs:
           name: v${{ steps.version.outputs.version }}
           draft: false
           prerelease: false
+          fail_on_unmatched_files: false
           files: |
             CiderTogether_${{ steps.version.outputs.version }}_x64.msix
             CiderTogether.cer
