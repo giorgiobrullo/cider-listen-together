@@ -164,8 +164,8 @@ struct MenuBarView: View {
     }
 
     private func formattedCode(_ code: String) -> String {
-        if code.count == 6 {
-            let index = code.index(code.startIndex, offsetBy: 3)
+        if code.count == 8 {
+            let index = code.index(code.startIndex, offsetBy: 4)
             return "\(code[..<index])-\(code[index...])"
         }
         return code

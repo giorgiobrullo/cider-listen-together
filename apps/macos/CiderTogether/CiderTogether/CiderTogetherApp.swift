@@ -72,6 +72,14 @@ struct CiderTogetherApp: App {
                 }
                 .keyboardShortcut("w", modifiers: [.command])
                 .disabled(!appState.isInRoom)
+
+                Divider()
+
+                Button("Debug Info...") {
+                    openDebugWindow()
+                }
+                .keyboardShortcut("d", modifiers: [.command, .option])
+                .disabled(!appState.isInRoom)
             }
             // Replace default Help menu with a link to GitHub
             CommandGroup(replacing: .help) {
@@ -126,6 +134,20 @@ struct CiderTogetherApp: App {
         // Keep window reference alive
         WindowController.shared.licensesWindow = window
     }
+
+    private func openDebugWindow() {
+        let debugView = DebugView().environmentObject(appState)
+        let hostingController = NSHostingController(rootView: debugView)
+        let window = NSWindow(contentViewController: hostingController)
+        window.title = "Debug Info"
+        window.styleMask = [.titled, .closable, .resizable]
+        window.setContentSize(NSSize(width: 350, height: 550))
+        window.center()
+        window.makeKeyAndOrderFront(nil)
+
+        // Keep window reference alive
+        WindowController.shared.debugWindow = window
+    }
 }
 
 // Helper to keep windows alive
@@ -133,4 +155,5 @@ class WindowController {
     static let shared = WindowController()
     var aboutWindow: NSWindow?
     var licensesWindow: NSWindow?
+    var debugWindow: NSWindow?
 }

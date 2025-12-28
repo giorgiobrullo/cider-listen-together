@@ -9,7 +9,7 @@ use crate::latency::SharedLatencyTracker;
 use crate::network::{NetworkEvent, NetworkHandle};
 use crate::sync::{Participant as InternalParticipant, Room, SyncMessage};
 
-use super::types::{Participant, PlaybackState, RoomState, SessionCallback, TrackInfo};
+use super::types::{Participant, PlaybackState, RoomState, SessionCallback, SyncStatus, TrackInfo};
 
 /// Handle a network event
 pub async fn handle_network_event(
@@ -663,21 +663,21 @@ async fn handle_heartbeat(
         // Get estimated one-way latency to host
         let latency_ms = latency_tracker.read().unwrap().host_latency_ms();
 
-        // Calculate expected position based on heartbeat timestamp + latency compensation
-        let now = super::types::current_time_ms();
-        let elapsed_since_heartbeat = now.saturating_sub(playback.timestamp_ms);
-        let expected_position = if playback.is_playing {
-            // Add latency to account for network delay
-            playback.position_ms + elapsed_since_heartbeat + latency_ms
-        } else {
-            playback.position_ms
-        };
-
-        // Get current Cider playback state to check drift
+        // Get current Cider playback state first
         let cider_client = cider.read().unwrap().clone();
 
         // Check current position from now_playing
         if let Ok(Some(np)) = cider_client.now_playing().await {
+            // Calculate expected position NOW (after async call completes)
+            // This gives more accurate comparison since current_position is also "now"
+            let now = super::types::current_time_ms();
+            let elapsed_since_heartbeat = now.saturating_sub(playback.timestamp_ms);
+            let expected_position = if playback.is_playing {
+                // Add latency to account for network delay
+                playback.position_ms + elapsed_since_heartbeat + latency_ms
+            } else {
+                playback.position_ms
+            };
             let current_position = np.current_position_ms();
 
             // Check if we're drifted too far from expected position
@@ -689,6 +689,15 @@ async fn handle_heartbeat(
                 "Sync: drift {:+}ms (expected: {}ms, actual: {}ms, latency: {}ms, elapsed: {}ms)",
                 drift_signed, expected_position, current_position, latency_ms, elapsed_since_heartbeat
             );
+
+            // Report sync status to UI for debug display
+            if let Some(cb) = callback.read().unwrap().as_ref() {
+                cb.on_sync_status(SyncStatus {
+                    drift_ms: drift_signed,
+                    latency_ms,
+                    elapsed_ms: elapsed_since_heartbeat,
+                });
+            }
 
             if drift > DRIFT_THRESHOLD_MS {
                 info!(

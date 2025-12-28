@@ -819,40 +819,59 @@ impl Session {
                     break;
                 }
 
-                // Check if we're still in the room as a listener and if heartbeat is stale
-                let (is_listener, is_stale) = {
+                // Check room state: Joining (wait), Active listener (check), Active host (exit), None (exit)
+                enum LoopState {
+                    WaitingToJoin,
+                    ActiveListener { is_stale: bool },
+                    ExitLoop,
+                }
+
+                let loop_state = {
                     let r = room.read().unwrap();
-                    match r.state() {
-                        Some(s) if !s.is_host() => (true, s.is_heartbeat_stale(heartbeat_timeout)),
-                        _ => (false, false),
+                    match &*r {
+                        Room::Joining { .. } => LoopState::WaitingToJoin,
+                        Room::Active(s) if !s.is_host() => {
+                            LoopState::ActiveListener {
+                                is_stale: s.is_heartbeat_stale(heartbeat_timeout),
+                            }
+                        }
+                        _ => LoopState::ExitLoop, // None, Creating, or Active as host
                     }
                 };
 
-                if !is_listener {
-                    debug!("No longer listener, stopping ping loop");
-                    break;
-                }
-
-                // Check for host timeout (force quit, crash, network loss)
-                if is_stale {
-                    warn!("Host heartbeat timeout - host may have disconnected");
-
-                    // Pause playback
-                    let cider_client = cider.read().unwrap().clone();
-                    let _ = cider_client.pause().await;
-
-                    // Notify callback
-                    if let Some(cb) = callback.read().unwrap().as_ref() {
-                        cb.on_room_ended("Host disconnected (timeout)".to_string());
+                match loop_state {
+                    LoopState::WaitingToJoin => {
+                        // Still joining, wait a bit and check again
+                        tokio::time::sleep(Duration::from_millis(500)).await;
+                        continue;
                     }
-
-                    // Clear room state
-                    {
-                        let mut r = room.write().unwrap();
-                        *r = Room::None;
+                    LoopState::ExitLoop => {
+                        debug!("No longer listener, stopping ping loop");
+                        break;
                     }
+                    LoopState::ActiveListener { is_stale } => {
+                        // Check for host timeout (force quit, crash, network loss)
+                        if is_stale {
+                            warn!("Host heartbeat timeout - host may have disconnected");
 
-                    break;
+                            // Pause playback
+                            let cider_client = cider.read().unwrap().clone();
+                            let _ = cider_client.pause().await;
+
+                            // Notify callback
+                            if let Some(cb) = callback.read().unwrap().as_ref() {
+                                cb.on_room_ended("Host disconnected (timeout)".to_string());
+                            }
+
+                            // Clear room state
+                            {
+                                let mut r = room.write().unwrap();
+                                *r = Room::None;
+                            }
+
+                            break;
+                        }
+                    }
                 }
 
                 // Create and send ping

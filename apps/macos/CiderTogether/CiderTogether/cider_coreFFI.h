@@ -314,6 +314,13 @@ typedef void (*UniffiCallbackInterfaceSessionCallbackMethod8)(uint64_t, void* _N
     );
 
 #endif
+#ifndef UNIFFI_FFIDEF_CALLBACK_INTERFACE_SESSION_CALLBACK_METHOD9
+#define UNIFFI_FFIDEF_CALLBACK_INTERFACE_SESSION_CALLBACK_METHOD9
+typedef void (*UniffiCallbackInterfaceSessionCallbackMethod9)(uint64_t, RustBuffer, void* _Nonnull, 
+        RustCallStatus *_Nonnull uniffiCallStatus
+    );
+
+#endif
 #ifndef UNIFFI_FFIDEF_V_TABLE_CALLBACK_INTERFACE_SESSION_CALLBACK
 #define UNIFFI_FFIDEF_V_TABLE_CALLBACK_INTERFACE_SESSION_CALLBACK
 typedef struct UniffiVTableCallbackInterfaceSessionCallback {
@@ -326,6 +333,7 @@ typedef struct UniffiVTableCallbackInterfaceSessionCallback {
     UniffiCallbackInterfaceSessionCallbackMethod6 _Nonnull onError;
     UniffiCallbackInterfaceSessionCallbackMethod7 _Nonnull onConnected;
     UniffiCallbackInterfaceSessionCallbackMethod8 _Nonnull onDisconnected;
+    UniffiCallbackInterfaceSessionCallbackMethod9 _Nonnull onSyncStatus;
     UniffiCallbackInterfaceFree _Nonnull uniffiFree;
 } UniffiVTableCallbackInterfaceSessionCallback;
 
@@ -908,6 +916,12 @@ uint16_t uniffi_cider_core_checksum_method_sessioncallback_on_connected(void
 #ifndef UNIFFI_FFIDEF_UNIFFI_CIDER_CORE_CHECKSUM_METHOD_SESSIONCALLBACK_ON_DISCONNECTED
 #define UNIFFI_FFIDEF_UNIFFI_CIDER_CORE_CHECKSUM_METHOD_SESSIONCALLBACK_ON_DISCONNECTED
 uint16_t uniffi_cider_core_checksum_method_sessioncallback_on_disconnected(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_CIDER_CORE_CHECKSUM_METHOD_SESSIONCALLBACK_ON_SYNC_STATUS
+#define UNIFFI_FFIDEF_UNIFFI_CIDER_CORE_CHECKSUM_METHOD_SESSIONCALLBACK_ON_SYNC_STATUS
+uint16_t uniffi_cider_core_checksum_method_sessioncallback_on_sync_status(void
     
 );
 #endif

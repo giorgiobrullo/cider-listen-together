@@ -147,6 +147,17 @@ impl From<&InternalRoomState> for RoomState {
     }
 }
 
+/// Sync status for debug display
+#[derive(Debug, Clone, uniffi::Record)]
+pub struct SyncStatus {
+    /// Drift in milliseconds (positive = ahead of host, negative = behind)
+    pub drift_ms: i64,
+    /// One-way latency to host in milliseconds
+    pub latency_ms: u64,
+    /// Time elapsed since host's heartbeat timestamp
+    pub elapsed_ms: u64,
+}
+
 /// Callback interface for session events
 #[uniffi::export(callback_interface)]
 pub trait SessionCallback: Send + Sync {
@@ -159,6 +170,8 @@ pub trait SessionCallback: Send + Sync {
     fn on_error(&self, message: String);
     fn on_connected(&self);
     fn on_disconnected(&self);
+    /// Called periodically with sync status (listeners only)
+    fn on_sync_status(&self, status: SyncStatus);
 }
 
 /// Get current time in milliseconds since UNIX epoch

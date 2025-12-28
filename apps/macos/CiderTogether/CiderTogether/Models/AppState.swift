@@ -20,6 +20,7 @@ class AppState: ObservableObject {
     @Published var isInRoom: Bool = false  // Cached to avoid synchronous FFI calls
     @Published var isInMenuBarMode: Bool = false  // Whether app is minimized to menu bar
     @Published var joiningRoomCode: String? = nil  // Room code we're trying to join (for retries)
+    @Published var syncStatus: SyncStatus? = nil  // Current sync status (listeners only)
 
     // MARK: - Persisted State
 
@@ -474,6 +475,14 @@ class SessionCallbackImpl: SessionCallback {
             appState.isInRoom = false
             appState.isHost = false
             appState.joiningRoomCode = nil
+            appState.syncStatus = nil
+        }
+    }
+
+    func onSyncStatus(status: SyncStatus) {
+        DispatchQueue.main.async { [weak self] in
+            guard let appState = self?.appState else { return }
+            appState.syncStatus = status
         }
     }
 }

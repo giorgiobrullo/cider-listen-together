@@ -197,9 +197,9 @@ struct JoinRoomSheet: View {
             .uppercased()
     }
 
-    /// Whether the room code is valid (exactly 6 alphanumeric characters)
+    /// Whether the room code is valid (exactly 8 alphanumeric characters)
     private var isValidCode: Bool {
-        cleanCode.count == 6
+        cleanCode.count == 8
     }
 
     var body: some View {
@@ -212,11 +212,11 @@ struct JoinRoomSheet: View {
                     .font(.subheadline)
                     .foregroundColor(.secondary)
 
-                TextField("XXX-XXX", text: $roomCode)
+                TextField("XXXX-XXXX", text: $roomCode)
                     .textFieldStyle(.roundedBorder)
                     .font(.title3.monospaced())
                     .multilineTextAlignment(.center)
-                    .frame(maxWidth: 160)
+                    .frame(maxWidth: 180)
                     .focused($isFocused)
                     .onChange(of: roomCode) { _, newValue in
                         formatRoomCode(newValue)
@@ -227,7 +227,7 @@ struct JoinRoomSheet: View {
 
                 // Validation hint
                 if !roomCode.isEmpty && !isValidCode {
-                    Text("Enter 6 characters (letters and numbers)")
+                    Text("Enter 8 characters (letters and numbers)")
                         .font(.caption2)
                         .foregroundColor(.orange)
                 }
@@ -255,18 +255,18 @@ struct JoinRoomSheet: View {
         }
     }
 
-    /// Format the room code as XXX-XXX while user types
+    /// Format the room code as XXXX-XXXX while user types
     private func formatRoomCode(_ input: String) {
         // Extract only alphanumeric characters and uppercase
         let cleaned = input
             .replacingOccurrences(of: "-", with: "")
             .filter { $0.isLetter || $0.isNumber }
             .uppercased()
-            .prefix(6)
+            .prefix(8)
 
-        // Format as XXX-XXX
-        if cleaned.count > 3 {
-            let formatted = "\(cleaned.prefix(3))-\(cleaned.suffix(cleaned.count - 3))"
+        // Format as XXXX-XXXX
+        if cleaned.count > 4 {
+            let formatted = "\(cleaned.prefix(4))-\(cleaned.suffix(cleaned.count - 4))"
             if roomCode != formatted {
                 roomCode = formatted
             }

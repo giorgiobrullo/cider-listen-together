@@ -257,8 +257,8 @@ struct JoiningView: View {
     }
 
     private func formatRoomCode(_ code: String) -> String {
-        if code.count == 6 {
-            return "\(code.prefix(3))-\(code.suffix(3))"
+        if code.count == 8 {
+            return "\(code.prefix(4))-\(code.suffix(4))"
         }
         return code
     }

@@ -414,6 +414,22 @@ private struct FfiConverterUInt64: FfiConverterPrimitive {
 #if swift(>=5.8)
     @_documentation(visibility: private)
 #endif
+private struct FfiConverterInt64: FfiConverterPrimitive {
+    typealias FfiType = Int64
+    typealias SwiftType = Int64
+
+    static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Int64 {
+        return try lift(readInt(&buf))
+    }
+
+    static func write(_ value: Int64, into buf: inout [UInt8]) {
+        writeInt(&buf, lower(value))
+    }
+}
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
 private struct FfiConverterBool: FfiConverter {
     typealias FfiType = Int8
     typealias SwiftType = Bool
@@ -1175,6 +1191,97 @@ public func FfiConverterTypeRoomState_lower(_ value: RoomState) -> RustBuffer {
 }
 
 /**
+ * Sync status for debug display
+ */
+public struct SyncStatus {
+    /**
+     * Drift in milliseconds (positive = ahead of host, negative = behind)
+     */
+    public var driftMs: Int64
+    /**
+     * One-way latency to host in milliseconds
+     */
+    public var latencyMs: UInt64
+    /**
+     * Time elapsed since host's heartbeat timestamp
+     */
+    public var elapsedMs: UInt64
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Drift in milliseconds (positive = ahead of host, negative = behind)
+         */ driftMs: Int64,
+        /**
+            * One-way latency to host in milliseconds
+            */ latencyMs: UInt64,
+        /**
+            * Time elapsed since host's heartbeat timestamp
+            */ elapsedMs: UInt64
+    ) {
+        self.driftMs = driftMs
+        self.latencyMs = latencyMs
+        self.elapsedMs = elapsedMs
+    }
+}
+
+extension SyncStatus: Equatable, Hashable {
+    public static func == (lhs: SyncStatus, rhs: SyncStatus) -> Bool {
+        if lhs.driftMs != rhs.driftMs {
+            return false
+        }
+        if lhs.latencyMs != rhs.latencyMs {
+            return false
+        }
+        if lhs.elapsedMs != rhs.elapsedMs {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(driftMs)
+        hasher.combine(latencyMs)
+        hasher.combine(elapsedMs)
+    }
+}
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeSyncStatus: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SyncStatus {
+        return
+            try SyncStatus(
+                driftMs: FfiConverterInt64.read(from: &buf),
+                latencyMs: FfiConverterUInt64.read(from: &buf),
+                elapsedMs: FfiConverterUInt64.read(from: &buf)
+            )
+    }
+
+    public static func write(_ value: SyncStatus, into buf: inout [UInt8]) {
+        FfiConverterInt64.write(value.driftMs, into: &buf)
+        FfiConverterUInt64.write(value.latencyMs, into: &buf)
+        FfiConverterUInt64.write(value.elapsedMs, into: &buf)
+    }
+}
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSyncStatus_lift(_ buf: RustBuffer) throws -> SyncStatus {
+    return try FfiConverterTypeSyncStatus.lift(buf)
+}
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+public func FfiConverterTypeSyncStatus_lower(_ value: SyncStatus) -> RustBuffer {
+    return FfiConverterTypeSyncStatus.lower(value)
+}
+
+/**
  * Track information exposed via FFI
  */
 public struct TrackInfo {
@@ -1374,6 +1481,11 @@ public protocol SessionCallback: AnyObject {
     func onConnected()
 
     func onDisconnected()
+
+    /**
+     * Called periodically with sync status (listeners only)
+     */
+    func onSyncStatus(status: SyncStatus)
 }
 
 // Magic number for the Rust proxy to call using the same mechanism as every other method,
@@ -1582,6 +1694,29 @@ private enum UniffiCallbackInterfaceSessionCallback {
                     throw UniffiInternalError.unexpectedStaleHandle
                 }
                 return uniffiObj.onDisconnected(
+                )
+            }
+
+            let writeReturn = { () }
+            uniffiTraitInterfaceCall(
+                callStatus: uniffiCallStatus,
+                makeCall: makeCall,
+                writeReturn: writeReturn
+            )
+        },
+        onSyncStatus: { (
+            uniffiHandle: UInt64,
+            status: RustBuffer,
+            _: UnsafeMutableRawPointer,
+            uniffiCallStatus: UnsafeMutablePointer<RustCallStatus>
+        ) in
+            let makeCall = {
+                () throws in
+                guard let uniffiObj = try? FfiConverterCallbackInterfaceSessionCallback.handleMap.get(handle: uniffiHandle) else {
+                    throw UniffiInternalError.unexpectedStaleHandle
+                }
+                return try uniffiObj.onSyncStatus(
+                    status: FfiConverterTypeSyncStatus.lift(status)
                 )
             }
 
@@ -1851,6 +1986,9 @@ private var initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if uniffi_cider_core_checksum_method_sessioncallback_on_disconnected() != 6877 {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if uniffi_cider_core_checksum_method_sessioncallback_on_sync_status() != 16815 {
         return InitializationResult.apiChecksumMismatch
     }
 
