@@ -16,6 +16,10 @@ env:
 jobs:
   build-macos:
     runs-on: macos-26
+    permissions:
+      id-token: write
+      contents: read
+      attestations: write
     env:
       SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
       MACOS_CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
@@ -205,6 +209,11 @@ jobs:
             </channel>
           </rss>
           EOF
+
+      - name: Attest DMG
+        uses: actions/attest-build-provenance@v3
+        with:
+          subject-path: CiderTogether-${{ steps.version.outputs.version }}.dmg
 
       - name: Upload DMG artifact
         uses: actions/upload-artifact@v4

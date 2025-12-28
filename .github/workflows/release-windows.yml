@@ -1,0 +1,186 @@
+name: Release Windows
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (e.g., 1.0.0)'
+        required: true
+
+env:
+  RUST_BACKTRACE: 1
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    permissions:
+      id-token: write
+      contents: read
+      attestations: write
+    env:
+      WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
+      WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+    strategy:
+      matrix:
+        platform: [x64]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: ". -> target"
+
+      - name: Build Rust library
+        run: |
+          cargo build --release -p cider-core
+          Copy-Item target/release/cider_core.dll apps/windows/CiderTogether/CiderTogether/CiderTogether/Bridge/
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Get version
+        id: version
+        shell: pwsh
+        run: |
+          if ("${{ github.event.inputs.version }}" -ne "") {
+            echo "version=${{ github.event.inputs.version }}" >> $env:GITHUB_OUTPUT
+          } else {
+            $tag = "${{ github.ref }}" -replace 'refs/tags/v', ''
+            echo "version=$tag" >> $env:GITHUB_OUTPUT
+          }
+
+      - name: Update version in manifest
+        shell: pwsh
+        run: |
+          $version = "${{ steps.version.outputs.version }}"
+          $manifestPath = "apps/windows/CiderTogether/CiderTogether/CiderTogether/Package.appxmanifest"
+          $content = Get-Content $manifestPath -Raw
+          $content = $content -replace 'Version="[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+"', "Version=`"$version.0`""
+          Set-Content $manifestPath $content
+
+      - name: Import or create certificate
+        shell: pwsh
+        run: |
+          if ($env:WINDOWS_CERTIFICATE) {
+            # Use stored certificate from secrets
+            $certBytes = [Convert]::FromBase64String($env:WINDOWS_CERTIFICATE)
+            [IO.File]::WriteAllBytes("apps/windows/CiderTogether/CiderTogether/CiderTogether.pfx", $certBytes)
+            $password = ConvertTo-SecureString -String $env:WINDOWS_CERTIFICATE_PASSWORD -Force -AsPlainText
+            $cert = Import-PfxCertificate -FilePath "apps/windows/CiderTogether/CiderTogether/CiderTogether.pfx" -CertStoreLocation "Cert:\CurrentUser\My" -Password $password
+            Export-Certificate -Cert $cert -FilePath "CiderTogether.cer"
+            echo "CERT_THUMBPRINT=$($cert.Thumbprint)" >> $env:GITHUB_ENV
+            echo "CERT_PASSWORD=$env:WINDOWS_CERTIFICATE_PASSWORD" >> $env:GITHUB_ENV
+          } else {
+            # Create self-signed certificate for testing
+            $cert = New-SelfSignedCertificate -Type Custom -Subject "CN=Giorgio Maria Brullo" -KeyUsage DigitalSignature -FriendlyName "CiderTogether Dev Certificate" -CertStoreLocation "Cert:\CurrentUser\My" -TextExtension @("2.5.29.37={text}1.3.6.1.5.5.7.3.3", "2.5.29.19={text}")
+            $password = ConvertTo-SecureString -String "CiderTogether123!" -Force -AsPlainText
+            Export-PfxCertificate -Cert $cert -FilePath "apps/windows/CiderTogether/CiderTogether/CiderTogether.pfx" -Password $password
+            Export-Certificate -Cert $cert -FilePath "CiderTogether.cer"
+            echo "CERT_THUMBPRINT=$($cert.Thumbprint)" >> $env:GITHUB_ENV
+            echo "CERT_PASSWORD=CiderTogether123!" >> $env:GITHUB_ENV
+          }
+
+      - name: Restore dependencies
+        run: |
+          cd apps/windows/CiderTogether/CiderTogether/CiderTogether
+          dotnet restore
+
+      - name: Build and package MSIX
+        shell: pwsh
+        run: |
+          cd apps/windows/CiderTogether/CiderTogether/CiderTogether
+          dotnet publish -c Release -p:Platform=${{ matrix.platform }} -p:AppxBundle=Never -p:UapAppxPackageBuildMode=SideloadOnly -p:AppxPackageSigningEnabled=true -p:PackageCertificateThumbprint="$env:CERT_THUMBPRINT" -p:PackageCertificatePassword="$env:CERT_PASSWORD" -o publish
+
+      - name: Find and rename MSIX
+        id: msix
+        shell: pwsh
+        run: |
+          $version = "${{ steps.version.outputs.version }}"
+          $msix = Get-ChildItem -Path "apps/windows/CiderTogether/CiderTogether/CiderTogether/publish" -Filter "*.msix" -Recurse | Select-Object -First 1
+          if ($msix) {
+            $newName = "CiderTogether_${version}_${{ matrix.platform }}.msix"
+            Copy-Item $msix.FullName $newName
+            echo "msix_path=$newName" >> $env:GITHUB_OUTPUT
+          } else {
+            # Try finding msixbundle
+            $bundle = Get-ChildItem -Path "apps/windows/CiderTogether/CiderTogether/CiderTogether/publish" -Filter "*.msixbundle" -Recurse | Select-Object -First 1
+            if ($bundle) {
+              $newName = "CiderTogether_${version}_${{ matrix.platform }}.msixbundle"
+              Copy-Item $bundle.FullName $newName
+              echo "msix_path=$newName" >> $env:GITHUB_OUTPUT
+            } else {
+              # List what we have
+              Get-ChildItem -Path "apps/windows/CiderTogether/CiderTogether/CiderTogether/publish" -Recurse
+              throw "No MSIX or MSIXBUNDLE found"
+            }
+          }
+
+      - name: Attest MSIX
+        uses: actions/attest-build-provenance@v3
+        with:
+          subject-path: ${{ steps.msix.outputs.msix_path }}
+
+      - name: Upload MSIX artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: CiderTogether-windows-${{ matrix.platform }}
+          path: ${{ steps.msix.outputs.msix_path }}
+
+      - name: Upload certificate artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: CiderTogether-certificate
+          path: CiderTogether.cer
+
+  release:
+    needs: build-windows
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download Windows x64 artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: CiderTogether-windows-x64
+
+      - name: Download certificate
+        uses: actions/download-artifact@v4
+        with:
+          name: CiderTogether-certificate
+
+      - name: Get version
+        id: version
+        run: |
+          if [ -n "${{ github.event.inputs.version }}" ]; then
+            echo "version=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
+          else
+            echo "version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create or update Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ steps.version.outputs.version }}
+          name: v${{ steps.version.outputs.version }}
+          draft: false
+          prerelease: false
+          files: |
+            CiderTogether_${{ steps.version.outputs.version }}_x64.msix
+            CiderTogether.cer
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
