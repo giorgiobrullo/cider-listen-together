@@ -53,3 +53,8 @@ nul
 
 # Generated files (keep in repo for convenience, but can regenerate)
 # apps/macos/CiderTogether/CiderTogether/Bridge/
+
+# Windows signing certificate
+*.pfx
+*.pem
+windows-cert*
