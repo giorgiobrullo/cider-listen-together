@@ -681,11 +681,14 @@ async fn handle_heartbeat(
             let current_position = np.current_position_ms();
 
             // Check if we're drifted too far from expected position
-            let drift = if current_position > expected_position {
-                current_position - expected_position
-            } else {
-                expected_position - current_position
-            };
+            let drift_signed = current_position as i64 - expected_position as i64;
+            let drift = drift_signed.unsigned_abs();
+
+            // Log sync accuracy for diagnostics (positive = ahead, negative = behind)
+            debug!(
+                "Sync: drift {:+}ms (expected: {}ms, actual: {}ms, latency: {}ms, elapsed: {}ms)",
+                drift_signed, expected_position, current_position, latency_ms, elapsed_since_heartbeat
+            );
 
             if drift > DRIFT_THRESHOLD_MS {
                 info!(
