@@ -70,7 +70,7 @@
     <path d="M 660 310 Q 615 325, 615 350 Q 615 375, 660 390"/>
   </g>
 
-  <!-- Subtle center hint arrow (between app@180 and Applications@480, at y=170) -->
+  <!-- Subtle center hint arrow (between app@360 and Applications@960 at 2x, viewBox coords /2) -->
   <g opacity="0.2">
     <path d="M 270 170 L 390 170" stroke="#fff" stroke-width="2" stroke-dasharray="8,4"/>
     <path d="M 380 160 L 395 170 L 380 180" stroke="#fff" stroke-width="2" fill="none"/>

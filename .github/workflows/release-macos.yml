@@ -118,17 +118,17 @@ jobs:
           # Convert SVG background to PNG
           rsvg-convert -w 1320 -h 800 assets/dmg-background.svg -o dmg-background.png
 
-          # Create a styled DMG with drag-to-Applications
+          # Create a styled DMG with drag-to-Applications (2x size for retina)
           create-dmg \
             --volname "CiderTogether" \
             --volicon "$APP_PATH/Contents/Resources/AppIcon.icns" \
             --background dmg-background.png \
             --window-pos 200 120 \
-            --window-size 660 400 \
-            --icon-size 160 \
-            --icon "CiderTogether.app" 180 170 \
+            --window-size 1320 800 \
+            --icon-size 320 \
+            --icon "CiderTogether.app" 360 340 \
             --hide-extension "CiderTogether.app" \
-            --app-drop-link 480 170 \
+            --app-drop-link 960 340 \
             --no-internet-enable \
             CiderTogether.dmg \
             "$APP_PATH" \
