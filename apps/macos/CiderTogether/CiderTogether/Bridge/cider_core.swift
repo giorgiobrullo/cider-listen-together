@@ -887,6 +887,111 @@ public func FfiConverterTypeSession_lower(_ value: Session) -> UnsafeMutableRawP
 }
 
 /**
+ * A calibration sample for debug display
+ */
+public struct CalibrationSample {
+    /**
+     * Drift measured after seek (positive = ahead, negative = behind)
+     */
+    public var driftMs: Int64
+    /**
+     * The ideal offset this sample suggested
+     */
+    public var idealOffsetMs: Int64
+    /**
+     * The offset after applying this sample
+     */
+    public var newOffsetMs: UInt64
+    /**
+     * Whether this sample was rejected as outlier
+     */
+    public var rejected: Bool
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Drift measured after seek (positive = ahead, negative = behind)
+         */ driftMs: Int64,
+        /**
+            * The ideal offset this sample suggested
+            */ idealOffsetMs: Int64,
+        /**
+            * The offset after applying this sample
+            */ newOffsetMs: UInt64,
+        /**
+            * Whether this sample was rejected as outlier
+            */ rejected: Bool
+    ) {
+        self.driftMs = driftMs
+        self.idealOffsetMs = idealOffsetMs
+        self.newOffsetMs = newOffsetMs
+        self.rejected = rejected
+    }
+}
+
+extension CalibrationSample: Equatable, Hashable {
+    public static func == (lhs: CalibrationSample, rhs: CalibrationSample) -> Bool {
+        if lhs.driftMs != rhs.driftMs {
+            return false
+        }
+        if lhs.idealOffsetMs != rhs.idealOffsetMs {
+            return false
+        }
+        if lhs.newOffsetMs != rhs.newOffsetMs {
+            return false
+        }
+        if lhs.rejected != rhs.rejected {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(driftMs)
+        hasher.combine(idealOffsetMs)
+        hasher.combine(newOffsetMs)
+        hasher.combine(rejected)
+    }
+}
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+public struct FfiConverterTypeCalibrationSample: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> CalibrationSample {
+        return
+            try CalibrationSample(
+                driftMs: FfiConverterInt64.read(from: &buf),
+                idealOffsetMs: FfiConverterInt64.read(from: &buf),
+                newOffsetMs: FfiConverterUInt64.read(from: &buf),
+                rejected: FfiConverterBool.read(from: &buf)
+            )
+    }
+
+    public static func write(_ value: CalibrationSample, into buf: inout [UInt8]) {
+        FfiConverterInt64.write(value.driftMs, into: &buf)
+        FfiConverterInt64.write(value.idealOffsetMs, into: &buf)
+        FfiConverterUInt64.write(value.newOffsetMs, into: &buf)
+        FfiConverterBool.write(value.rejected, into: &buf)
+    }
+}
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+public func FfiConverterTypeCalibrationSample_lift(_ buf: RustBuffer) throws -> CalibrationSample {
+    return try FfiConverterTypeCalibrationSample.lift(buf)
+}
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+public func FfiConverterTypeCalibrationSample_lower(_ value: CalibrationSample) -> RustBuffer {
+    return FfiConverterTypeCalibrationSample.lower(value)
+}
+
+/**
  * Current playback info (for polling) exposed via FFI
  */
 public struct CurrentPlayback {
@@ -1206,6 +1311,23 @@ public struct SyncStatus {
      * Time elapsed since host's heartbeat timestamp
      */
     public var elapsedMs: UInt64
+    /**
+     * Calibrated seek offset for Cider buffer latency
+     */
+    public var seekOffsetMs: UInt64
+    /**
+     * Whether calibrator is waiting to measure after a seek
+     */
+    public var calibrationPending: Bool
+    /**
+     * What the next calibration sample would be (if pending and not outlier)
+     * None if not pending or would be rejected as outlier
+     */
+    public var nextCalibrationSample: Int64?
+    /**
+     * Recent calibration samples (newest last)
+     */
+    public var sampleHistory: [CalibrationSample]
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
@@ -1218,11 +1340,28 @@ public struct SyncStatus {
             */ latencyMs: UInt64,
         /**
             * Time elapsed since host's heartbeat timestamp
-            */ elapsedMs: UInt64
+            */ elapsedMs: UInt64,
+        /**
+            * Calibrated seek offset for Cider buffer latency
+            */ seekOffsetMs: UInt64,
+        /**
+            * Whether calibrator is waiting to measure after a seek
+            */ calibrationPending: Bool,
+        /**
+            * What the next calibration sample would be (if pending and not outlier)
+            * None if not pending or would be rejected as outlier
+            */ nextCalibrationSample: Int64?,
+        /**
+            * Recent calibration samples (newest last)
+            */ sampleHistory: [CalibrationSample]
     ) {
         self.driftMs = driftMs
         self.latencyMs = latencyMs
         self.elapsedMs = elapsedMs
+        self.seekOffsetMs = seekOffsetMs
+        self.calibrationPending = calibrationPending
+        self.nextCalibrationSample = nextCalibrationSample
+        self.sampleHistory = sampleHistory
     }
 }
 
@@ -1237,6 +1376,18 @@ extension SyncStatus: Equatable, Hashable {
         if lhs.elapsedMs != rhs.elapsedMs {
             return false
         }
+        if lhs.seekOffsetMs != rhs.seekOffsetMs {
+            return false
+        }
+        if lhs.calibrationPending != rhs.calibrationPending {
+            return false
+        }
+        if lhs.nextCalibrationSample != rhs.nextCalibrationSample {
+            return false
+        }
+        if lhs.sampleHistory != rhs.sampleHistory {
+            return false
+        }
         return true
     }
 
@@ -1244,6 +1395,10 @@ extension SyncStatus: Equatable, Hashable {
         hasher.combine(driftMs)
         hasher.combine(latencyMs)
         hasher.combine(elapsedMs)
+        hasher.combine(seekOffsetMs)
+        hasher.combine(calibrationPending)
+        hasher.combine(nextCalibrationSample)
+        hasher.combine(sampleHistory)
     }
 }
 
@@ -1256,7 +1411,11 @@ public struct FfiConverterTypeSyncStatus: FfiConverterRustBuffer {
             try SyncStatus(
                 driftMs: FfiConverterInt64.read(from: &buf),
                 latencyMs: FfiConverterUInt64.read(from: &buf),
-                elapsedMs: FfiConverterUInt64.read(from: &buf)
+                elapsedMs: FfiConverterUInt64.read(from: &buf),
+                seekOffsetMs: FfiConverterUInt64.read(from: &buf),
+                calibrationPending: FfiConverterBool.read(from: &buf),
+                nextCalibrationSample: FfiConverterOptionInt64.read(from: &buf),
+                sampleHistory: FfiConverterSequenceTypeCalibrationSample.read(from: &buf)
             )
     }
 
@@ -1264,6 +1423,10 @@ public struct FfiConverterTypeSyncStatus: FfiConverterRustBuffer {
         FfiConverterInt64.write(value.driftMs, into: &buf)
         FfiConverterUInt64.write(value.latencyMs, into: &buf)
         FfiConverterUInt64.write(value.elapsedMs, into: &buf)
+        FfiConverterUInt64.write(value.seekOffsetMs, into: &buf)
+        FfiConverterBool.write(value.calibrationPending, into: &buf)
+        FfiConverterOptionInt64.write(value.nextCalibrationSample, into: &buf)
+        FfiConverterSequenceTypeCalibrationSample.write(value.sampleHistory, into: &buf)
     }
 }
 
@@ -1788,6 +1951,30 @@ extension FfiConverterCallbackInterfaceSessionCallback: FfiConverter {
 #if swift(>=5.8)
     @_documentation(visibility: private)
 #endif
+private struct FfiConverterOptionInt64: FfiConverterRustBuffer {
+    typealias SwiftType = Int64?
+
+    static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterInt64.write(value, into: &buf)
+    }
+
+    static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterInt64.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
 private struct FfiConverterOptionString: FfiConverterRustBuffer {
     typealias SwiftType = String?
 
@@ -1854,6 +2041,31 @@ private struct FfiConverterOptionTypeTrackInfo: FfiConverterRustBuffer {
         case 1: return try FfiConverterTypeTrackInfo.read(from: &buf)
         default: throw UniffiInternalError.unexpectedOptionalTag
         }
+    }
+}
+
+#if swift(>=5.8)
+    @_documentation(visibility: private)
+#endif
+private struct FfiConverterSequenceTypeCalibrationSample: FfiConverterRustBuffer {
+    typealias SwiftType = [CalibrationSample]
+
+    static func write(_ value: [CalibrationSample], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeCalibrationSample.write(item, into: &buf)
+        }
+    }
+
+    static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [CalibrationSample] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [CalibrationSample]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            try seq.append(FfiConverterTypeCalibrationSample.read(from: &buf))
+        }
+        return seq
     }
 }
 

@@ -8,6 +8,7 @@ use tracing::{debug, info, warn};
 use crate::cider::{CiderClient, CiderError as CiderApiError};
 use crate::latency::{self, SharedLatencyTracker};
 use crate::network::{NetworkHandle, NetworkManager, RoomCode};
+use crate::seek_calibrator::{self, SharedSeekCalibrator};
 use crate::sync::{PlaybackInfo, Room, RoomState as InternalRoomState, SyncMessage};
 
 use super::handlers::handle_network_event;
@@ -32,6 +33,8 @@ pub struct Session {
     latency_tracker: SharedLatencyTracker,
     /// Handle for cancelling the listener ping loop
     listener_ping_cancel: Arc<RwLock<Option<tokio::sync::oneshot::Sender<()>>>>,
+    /// Seek offset calibrator for compensating Cider buffer latency
+    seek_calibrator: SharedSeekCalibrator,
 }
 
 #[uniffi::export]
@@ -72,6 +75,7 @@ impl Session {
             last_broadcast_track_id: Arc::new(RwLock::new(None)),
             latency_tracker: latency::new_shared_tracker(),
             listener_ping_cancel: Arc::new(RwLock::new(None)),
+            seek_calibrator: seek_calibrator::new_shared_calibrator(),
         }
     }
 
@@ -620,6 +624,7 @@ impl Session {
         let cider_clone = Arc::clone(&self.cider);
         let network_handle_clone = Arc::clone(&self.network_handle);
         let latency_tracker_clone = Arc::clone(&self.latency_tracker);
+        let seek_calibrator_clone = Arc::clone(&self.seek_calibrator);
         let local_peer_id = peer_id.clone();
 
         self.runtime.spawn(async move {
@@ -631,6 +636,7 @@ impl Session {
                     &cider_clone,
                     &network_handle_clone,
                     &latency_tracker_clone,
+                    &seek_calibrator_clone,
                     &local_peer_id,
                 ).await;
             }
@@ -686,47 +692,59 @@ impl Session {
                     cider_client.is_playing()
                 );
 
-                if let (Ok(Some(np)), Ok(is_playing)) = playback_result {
-                    let current_track_id: Option<String> = np.song_id().map(|s| s.to_string());
-                    let position_ms = np.current_position_ms();
+                // Extract playback info - use defaults if no track
+                let (current_track_id, position_ms, is_playing, track_info) = match playback_result {
+                    (Ok(Some(np)), Ok(playing)) => {
+                        let track = crate::sync::TrackInfo {
+                            song_id: np.song_id().map(|s| s.to_string()).unwrap_or_default(),
+                            name: np.name.clone(),
+                            artist: np.artist_name.clone(),
+                            album: np.album_name.clone(),
+                            artwork_url: np.artwork_url(600),
+                            duration_ms: np.duration_in_millis,
+                        };
+                        (np.song_id().map(|s| s.to_string()), np.current_position_ms(), playing, Some(track))
+                    }
+                    (Ok(None), Ok(playing)) => {
+                        // No track loaded - still send heartbeat with idle state
+                        (None, 0, playing, None)
+                    }
+                    _ => {
+                        // Cider error - skip this cycle but don't stop heartbeats
+                        debug!("Failed to poll Cider playback, skipping heartbeat");
+                        tokio::time::sleep(Duration::from_millis(1500)).await;
+                        continue;
+                    }
+                };
 
-                    // Check if track changed
-                    let track_changed = {
-                        let last = last_track_id.read().unwrap();
-                        last.as_ref() != current_track_id.as_ref()
-                    };
+                // Check if track changed
+                let track_changed = {
+                    let last = last_track_id.read().unwrap();
+                    last.as_ref() != current_track_id.as_ref()
+                };
 
-                    // Build internal track info
-                    let track = crate::sync::TrackInfo {
-                        song_id: current_track_id.clone().unwrap_or_default(),
-                        name: np.name.clone(),
-                        artist: np.artist_name.clone(),
-                        album: np.album_name.clone(),
-                        artwork_url: np.artwork_url(600),
-                        duration_ms: np.duration_in_millis,
-                    };
+                if track_changed {
+                    // Update last track ID
+                    {
+                        let mut last = last_track_id.write().unwrap();
+                        *last = current_track_id.clone();
+                    }
 
-                    if track_changed {
-                        // Update last track ID
-                        {
-                            let mut last = last_track_id.write().unwrap();
-                            *last = current_track_id.clone();
+                    // Update room state
+                    {
+                        let mut r = room.write().unwrap();
+                        if let Some(state) = r.state_mut() {
+                            state.update_track(track_info.clone());
+                            state.update_playback(PlaybackInfo {
+                                is_playing,
+                                position_ms,
+                                timestamp_ms: current_time_ms(),
+                            });
                         }
+                    }
 
-                        // Update room state
-                        {
-                            let mut r = room.write().unwrap();
-                            if let Some(state) = r.state_mut() {
-                                state.update_track(Some(track.clone()));
-                                state.update_playback(PlaybackInfo {
-                                    is_playing,
-                                    position_ms,
-                                    timestamp_ms: current_time_ms(),
-                                });
-                            }
-                        }
-
-                        // Broadcast track change
+                    // Broadcast track change (only if there's a track)
+                    if let Some(track) = &track_info {
                         if let Some(handle) = network_handle.read().unwrap().as_ref() {
                             let msg = SyncMessage::TrackChange {
                                 track: track.clone(),
@@ -738,35 +756,41 @@ impl Session {
 
                         // Notify callback
                         if let Some(cb) = callback.read().unwrap().as_ref() {
-                            cb.on_track_changed(Some(TrackInfo::from(track)));
+                            cb.on_track_changed(Some(TrackInfo::from(track.clone())));
                         }
 
-                        debug!("Broadcasted track change: {}", np.name);
+                        debug!("Broadcasted track change: {}", track.name);
                     } else {
-                        // Just broadcast heartbeat with position update
-                        if let Some(handle) = network_handle.read().unwrap().as_ref() {
-                            let msg = SyncMessage::Heartbeat {
-                                track_id: current_track_id,
-                                playback: PlaybackInfo {
-                                    is_playing,
-                                    position_ms,
-                                    timestamp_ms: current_time_ms(),
-                                },
-                            };
-                            let _ = handle.broadcast(msg);
+                        // Track cleared - notify callback
+                        if let Some(cb) = callback.read().unwrap().as_ref() {
+                            cb.on_track_changed(None);
                         }
+                        debug!("Track cleared");
+                    }
+                }
 
-                        // Update room playback state
-                        {
-                            let mut r = room.write().unwrap();
-                            if let Some(state) = r.state_mut() {
-                                state.update_playback(PlaybackInfo {
-                                    is_playing,
-                                    position_ms,
-                                    timestamp_ms: current_time_ms(),
-                                });
-                            }
-                        }
+                // Always send heartbeat (keeps clients alive even when idle)
+                if let Some(handle) = network_handle.read().unwrap().as_ref() {
+                    let msg = SyncMessage::Heartbeat {
+                        track_id: current_track_id,
+                        playback: PlaybackInfo {
+                            is_playing,
+                            position_ms,
+                            timestamp_ms: current_time_ms(),
+                        },
+                    };
+                    let _ = handle.broadcast(msg);
+                }
+
+                // Update room playback state
+                {
+                    let mut r = room.write().unwrap();
+                    if let Some(state) = r.state_mut() {
+                        state.update_playback(PlaybackInfo {
+                            is_playing,
+                            position_ms,
+                            timestamp_ms: current_time_ms(),
+                        });
                     }
                 }
 
@@ -902,6 +926,9 @@ impl Session {
         // Clear latency tracker
         let mut tracker = self.latency_tracker.write().unwrap();
         tracker.clear();
+        // Reset seek calibrator
+        let mut calibrator = self.seek_calibrator.write().unwrap();
+        calibrator.reset();
     }
 }
 

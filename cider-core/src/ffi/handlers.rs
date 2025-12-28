@@ -7,9 +7,10 @@ use tracing::{debug, info, warn};
 use crate::cider::CiderClient;
 use crate::latency::SharedLatencyTracker;
 use crate::network::{NetworkEvent, NetworkHandle};
+use crate::seek_calibrator::SharedSeekCalibrator;
 use crate::sync::{Participant as InternalParticipant, Room, SyncMessage};
 
-use super::types::{Participant, PlaybackState, RoomState, SessionCallback, SyncStatus, TrackInfo};
+use super::types::{CalibrationSample, Participant, PlaybackState, RoomState, SessionCallback, SyncStatus, TrackInfo};
 
 /// Handle a network event
 pub async fn handle_network_event(
@@ -19,6 +20,7 @@ pub async fn handle_network_event(
     cider: &Arc<RwLock<CiderClient>>,
     network_handle: &Arc<RwLock<Option<NetworkHandle>>>,
     latency_tracker: &SharedLatencyTracker,
+    seek_calibrator: &SharedSeekCalibrator,
     local_peer_id: &str,
 ) {
     match event {
@@ -109,7 +111,7 @@ pub async fn handle_network_event(
         }
 
         NetworkEvent::Message { from, message } => {
-            handle_sync_message(from, message, room, callback, cider, network_handle, latency_tracker, local_peer_id).await;
+            handle_sync_message(from, message, room, callback, cider, network_handle, latency_tracker, seek_calibrator, local_peer_id).await;
         }
 
         NetworkEvent::Error(e) => {
@@ -138,6 +140,7 @@ pub async fn handle_sync_message(
     cider: &Arc<RwLock<CiderClient>>,
     network_handle: &Arc<RwLock<Option<NetworkHandle>>>,
     latency_tracker: &SharedLatencyTracker,
+    seek_calibrator: &SharedSeekCalibrator,
     local_peer_id: &str,
 ) {
     match message {
@@ -169,6 +172,7 @@ pub async fn handle_sync_message(
                     cider,
                     network_handle,
                     latency_tracker,
+                    seek_calibrator,
                     local_peer_id,
                 ).await;
             } else {
@@ -206,7 +210,7 @@ pub async fn handle_sync_message(
         SyncMessage::Play { track, position_ms, .. } => {
             // Only host controls playback
             if is_from_host(&from, room) {
-                handle_play(track, position_ms, room, cider).await;
+                handle_play(track, position_ms, room, cider, seek_calibrator).await;
             } else {
                 warn!("Ignoring Play from non-host: {}", from);
             }
@@ -222,7 +226,7 @@ pub async fn handle_sync_message(
 
         SyncMessage::Seek { position_ms, .. } => {
             if is_from_host(&from, room) {
-                handle_seek(position_ms, room, cider).await;
+                handle_seek(position_ms, room, cider, seek_calibrator).await;
             } else {
                 warn!("Ignoring Seek from non-host: {}", from);
             }
@@ -230,7 +234,7 @@ pub async fn handle_sync_message(
 
         SyncMessage::TrackChange { track, position_ms, timestamp_ms } => {
             if is_from_host(&from, room) {
-                handle_track_change(track, position_ms, timestamp_ms, room, callback, cider).await;
+                handle_track_change(track, position_ms, timestamp_ms, room, callback, cider, seek_calibrator).await;
             } else {
                 warn!("Ignoring TrackChange from non-host: {}", from);
             }
@@ -238,7 +242,7 @@ pub async fn handle_sync_message(
 
         SyncMessage::Heartbeat { track_id: _, playback } => {
             if is_from_host(&from, room) {
-                handle_heartbeat(playback, room, callback, cider, latency_tracker).await;
+                handle_heartbeat(playback, room, callback, cider, latency_tracker, seek_calibrator).await;
             } else {
                 debug!("Ignoring Heartbeat from non-host: {}", from);
             }
@@ -339,6 +343,7 @@ async fn handle_room_state(
     cider: &Arc<RwLock<CiderClient>>,
     network_handle: &Arc<RwLock<Option<NetworkHandle>>>,
     latency_tracker: &SharedLatencyTracker,
+    seek_calibrator: &SharedSeekCalibrator,
     local_peer_id: &str,
 ) {
     use crate::sync::RoomState as InternalRoomState;
@@ -458,16 +463,24 @@ async fn handle_room_state(
             // Calculate actual position accounting for elapsed time since heartbeat
             let now = super::types::current_time_ms();
             let elapsed_since_heartbeat = now.saturating_sub(timestamp_ms);
+            let seek_offset_ms = seek_calibrator.read().unwrap().offset_ms();
             let actual_position = if is_playing {
-                position_ms + elapsed_since_heartbeat
+                // Add seek_offset to compensate for Cider's buffering delay
+                position_ms + elapsed_since_heartbeat + seek_offset_ms
             } else {
                 position_ms
             };
 
-            info!("Seeking to adjusted position: {}ms (original: {}ms, elapsed: {}ms)",
-                actual_position, position_ms, elapsed_since_heartbeat);
+            info!("Seeking to adjusted position: {}ms (original: {}ms, elapsed: {}ms, offset: {}ms)",
+                actual_position, position_ms, elapsed_since_heartbeat, seek_offset_ms);
 
             let _ = cider_client.seek_ms(actual_position).await;
+
+            // Mark that we just seeked - next heartbeat will calibrate
+            {
+                let mut calibrator = seek_calibrator.write().unwrap();
+                calibrator.mark_seek_performed();
+            }
         }
     }
 }
@@ -532,6 +545,7 @@ async fn handle_play(
     position_ms: u64,
     room: &Arc<RwLock<Room>>,
     cider: &Arc<RwLock<CiderClient>>,
+    seek_calibrator: &SharedSeekCalibrator,
 ) {
     // Non-host: sync to host's playback
     let should_sync = {
@@ -542,11 +556,18 @@ async fn handle_play(
     if should_sync {
         let cider_client = cider.read().unwrap().clone();
         let song_id = track.song_id.clone();
-        // Play the same track at the same position
+        let seek_offset_ms = seek_calibrator.read().unwrap().offset_ms();
+        // Play the same track at the same position + offset to compensate for buffer delay
         let _ = cider_client.play_item("songs", &song_id).await;
         tokio::time::sleep(Duration::from_millis(100)).await;
-        let _ = cider_client.seek_ms(position_ms).await;
+        let _ = cider_client.seek_ms(position_ms + seek_offset_ms).await;
         let _ = cider_client.play().await;
+
+        // Mark that we just seeked - next heartbeat will calibrate
+        {
+            let mut calibrator = seek_calibrator.write().unwrap();
+            calibrator.mark_seek_performed();
+        }
     }
 }
 
@@ -571,6 +592,7 @@ async fn handle_seek(
     position_ms: u64,
     room: &Arc<RwLock<Room>>,
     cider: &Arc<RwLock<CiderClient>>,
+    seek_calibrator: &SharedSeekCalibrator,
 ) {
     let should_sync = {
         let room_guard = room.read().unwrap();
@@ -579,7 +601,14 @@ async fn handle_seek(
 
     if should_sync {
         let cider_client = cider.read().unwrap().clone();
-        let _ = cider_client.seek_ms(position_ms).await;
+        let seek_offset_ms = seek_calibrator.read().unwrap().offset_ms();
+        let _ = cider_client.seek_ms(position_ms + seek_offset_ms).await;
+
+        // Mark that we just seeked - next heartbeat will calibrate
+        {
+            let mut calibrator = seek_calibrator.write().unwrap();
+            calibrator.mark_seek_performed();
+        }
     }
 }
 
@@ -590,6 +619,7 @@ async fn handle_track_change(
     room: &Arc<RwLock<Room>>,
     callback: &Arc<RwLock<Option<Arc<dyn SessionCallback>>>>,
     cider: &Arc<RwLock<CiderClient>>,
+    seek_calibrator: &SharedSeekCalibrator,
 ) {
     let is_host = {
         let room_guard = room.read().unwrap();
@@ -622,15 +652,22 @@ async fn handle_track_change(
             tokio::time::sleep(poll_interval).await;
         }
 
-        // Calculate actual position accounting for elapsed time
+        // Calculate actual position accounting for elapsed time + seek offset
         let now = super::types::current_time_ms();
         let elapsed = now.saturating_sub(timestamp_ms);
-        let actual_position = position_ms + elapsed;
+        let seek_offset_ms = seek_calibrator.read().unwrap().offset_ms();
+        let actual_position = position_ms + elapsed + seek_offset_ms;
 
-        info!("TrackChange: seeking to {}ms (original: {}ms, elapsed: {}ms)",
-            actual_position, position_ms, elapsed);
+        info!("TrackChange: seeking to {}ms (original: {}ms, elapsed: {}ms, offset: {}ms)",
+            actual_position, position_ms, elapsed, seek_offset_ms);
 
         let _ = cider_client.seek_ms(actual_position).await;
+
+        // Mark that we just seeked - next heartbeat will calibrate
+        {
+            let mut calibrator = seek_calibrator.write().unwrap();
+            calibrator.mark_seek_performed();
+        }
     }
 
     // Update local state
@@ -652,6 +689,7 @@ async fn handle_heartbeat(
     callback: &Arc<RwLock<Option<Arc<dyn SessionCallback>>>>,
     cider: &Arc<RwLock<CiderClient>>,
     latency_tracker: &SharedLatencyTracker,
+    seek_calibrator: &SharedSeekCalibrator,
 ) {
     // Check if we're a listener and need to sync
     let should_sync = {
@@ -660,8 +698,9 @@ async fn handle_heartbeat(
     };
 
     if should_sync {
-        // Get estimated one-way latency to host
+        // Get estimated one-way latency to host and seek offset
         let latency_ms = latency_tracker.read().unwrap().host_latency_ms();
+        let seek_offset_ms = seek_calibrator.read().unwrap().offset_ms();
 
         // Get current Cider playback state first
         let cider_client = cider.read().unwrap().clone();
@@ -672,8 +711,10 @@ async fn handle_heartbeat(
             // This gives more accurate comparison since current_position is also "now"
             let now = super::types::current_time_ms();
             let elapsed_since_heartbeat = now.saturating_sub(playback.timestamp_ms);
+
+            // Expected position for COMPARISON (where host actually is + network latency)
+            // Does NOT include seek_offset - that's only for when we actually seek
             let expected_position = if playback.is_playing {
-                // Add latency to account for network delay
                 playback.position_ms + elapsed_since_heartbeat + latency_ms
             } else {
                 playback.position_ms
@@ -686,9 +727,26 @@ async fn handle_heartbeat(
 
             // Log sync accuracy for diagnostics (positive = ahead, negative = behind)
             debug!(
-                "Sync: drift {:+}ms (expected: {}ms, actual: {}ms, latency: {}ms, elapsed: {}ms)",
-                drift_signed, expected_position, current_position, latency_ms, elapsed_since_heartbeat
+                "Sync: drift {:+}ms (expected: {}ms, actual: {}ms, latency: {}ms, seek_offset: {}ms, elapsed: {}ms)",
+                drift_signed, expected_position, current_position, latency_ms, seek_offset_ms, elapsed_since_heartbeat
             );
+
+            // Get calibration state for debug display (before we potentially update it)
+            let (calibration_pending, next_calibration_sample, sample_history) = {
+                let calibrator = seek_calibrator.read().unwrap();
+                let pending = calibrator.is_awaiting_measurement();
+                let sample = if pending {
+                    calibrator.preview_calibration(drift_signed)
+                } else {
+                    None
+                };
+                let history: Vec<CalibrationSample> = calibrator
+                    .sample_history()
+                    .iter()
+                    .map(CalibrationSample::from)
+                    .collect();
+                (pending, sample, history)
+            };
 
             // Report sync status to UI for debug display
             if let Some(cb) = callback.read().unwrap().as_ref() {
@@ -696,15 +754,33 @@ async fn handle_heartbeat(
                     drift_ms: drift_signed,
                     latency_ms,
                     elapsed_ms: elapsed_since_heartbeat,
+                    seek_offset_ms,
+                    calibration_pending,
+                    next_calibration_sample,
+                    sample_history,
                 });
             }
 
+            // Try to measure the result of a previous seek operation (only updates if we were awaiting)
+            {
+                let mut calibrator = seek_calibrator.write().unwrap();
+                calibrator.measure_if_pending(drift_signed);
+            }
+
             if drift > DRIFT_THRESHOLD_MS {
+                // When seeking, ADD seek_offset to compensate for Cider's buffering delay
+                let seek_target = expected_position + seek_offset_ms;
                 info!(
-                    "Heartbeat: position drift {}ms exceeds threshold, re-syncing (expected: {}ms, actual: {}ms)",
-                    drift, expected_position, current_position
+                    "Heartbeat: position drift {}ms exceeds threshold, re-syncing (target: {}ms, current: {}ms, offset: {}ms)",
+                    drift, seek_target, current_position, seek_offset_ms
                 );
-                let _ = cider_client.seek_ms(expected_position).await;
+                let _ = cider_client.seek_ms(seek_target).await;
+
+                // Mark that we just seeked - next heartbeat will measure how accurate it was
+                {
+                    let mut calibrator = seek_calibrator.write().unwrap();
+                    calibrator.mark_seek_performed();
+                }
             }
         }
 

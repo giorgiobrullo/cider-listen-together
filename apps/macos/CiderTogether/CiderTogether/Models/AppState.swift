@@ -32,8 +32,9 @@ class AppState: ObservableObject {
     private var session: Session
     private var pollingTask: Task<Void, Never>?
     private var consecutiveFailures: Int = 0
-    private let maxConsecutiveFailures: Int = 3
+    private let maxConsecutiveFailures: Int = 5
     private var hasAppeared: Bool = false
+    private var appNapActivity: NSObjectProtocol?  // Prevents App Nap when polling
 
     // MARK: - View State Enum
 
@@ -163,7 +164,7 @@ class AppState: ObservableObject {
             return true
         case .failure:
             self.consecutiveFailures += 1
-            if consecutiveFailures >= 2 {
+            if consecutiveFailures >= 3 {
                 self.ciderDisconnected = true
             }
             if consecutiveFailures >= maxConsecutiveFailures {
@@ -176,6 +177,15 @@ class AppState: ObservableObject {
 
     private func startPolling() {
         stopPolling()
+
+        // Disable App Nap while polling to prevent throttling in background
+        if appNapActivity == nil {
+            appNapActivity = ProcessInfo.processInfo.beginActivity(
+                options: [.userInitiated, .idleSystemSleepDisabled],
+                reason: "Syncing with Cider"
+            )
+        }
+
         pollingTask = Task { [weak self] in
             while !Task.isCancelled {
                 guard let self = self else { break }
@@ -192,6 +202,12 @@ class AppState: ObservableObject {
     private func stopPolling() {
         pollingTask?.cancel()
         pollingTask = nil
+
+        // Re-enable App Nap when not polling
+        if let activity = appNapActivity {
+            ProcessInfo.processInfo.endActivity(activity)
+            appNapActivity = nil
+        }
     }
 
     // MARK: - Room Management

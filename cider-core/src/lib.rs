@@ -7,6 +7,7 @@ pub mod cider;
 pub mod ffi;
 pub mod latency;
 pub mod network;
+pub mod seek_calibrator;
 pub mod sync;
 
 // Re-exports for convenience

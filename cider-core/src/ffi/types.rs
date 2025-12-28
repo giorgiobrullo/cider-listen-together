@@ -1,5 +1,6 @@
 //! FFI types exposed via uniffi
 
+use crate::seek_calibrator::CalibrationSample as InternalCalibrationSample;
 use crate::sync::{Participant as InternalParticipant, PlaybackInfo, RoomState as InternalRoomState, TrackInfo as InternalTrackInfo};
 
 /// Error types exposed via FFI
@@ -147,6 +148,30 @@ impl From<&InternalRoomState> for RoomState {
     }
 }
 
+/// A calibration sample for debug display
+#[derive(Debug, Clone, uniffi::Record)]
+pub struct CalibrationSample {
+    /// Drift measured after seek (positive = ahead, negative = behind)
+    pub drift_ms: i64,
+    /// The ideal offset this sample suggested
+    pub ideal_offset_ms: i64,
+    /// The offset after applying this sample
+    pub new_offset_ms: u64,
+    /// Whether this sample was rejected as outlier
+    pub rejected: bool,
+}
+
+impl From<&InternalCalibrationSample> for CalibrationSample {
+    fn from(s: &InternalCalibrationSample) -> Self {
+        Self {
+            drift_ms: s.drift_ms,
+            ideal_offset_ms: s.ideal_offset_ms,
+            new_offset_ms: s.new_offset_ms,
+            rejected: s.rejected,
+        }
+    }
+}
+
 /// Sync status for debug display
 #[derive(Debug, Clone, uniffi::Record)]
 pub struct SyncStatus {
@@ -156,6 +181,15 @@ pub struct SyncStatus {
     pub latency_ms: u64,
     /// Time elapsed since host's heartbeat timestamp
     pub elapsed_ms: u64,
+    /// Calibrated seek offset for Cider buffer latency
+    pub seek_offset_ms: u64,
+    /// Whether calibrator is waiting to measure after a seek
+    pub calibration_pending: bool,
+    /// What the next calibration sample would be (if pending and not outlier)
+    /// None if not pending or would be rejected as outlier
+    pub next_calibration_sample: Option<i64>,
+    /// Recent calibration samples (newest last)
+    pub sample_history: Vec<CalibrationSample>,
 }
 
 /// Callback interface for session events
