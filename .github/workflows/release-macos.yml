@@ -118,7 +118,7 @@ jobs:
 
           # Sign the DMG with Sparkle EdDSA key
           echo "$SPARKLE_PRIVATE_KEY" > sparkle_private_key
-          SIGNATURE=$(/usr/local/Caskroom/sparkle/*/Sparkle.framework/Versions/B/Resources/bin/sign_update CiderTogether.dmg -f sparkle_private_key)
+          SIGNATURE=$(/opt/homebrew/Caskroom/sparkle/*/bin/sign_update CiderTogether.dmg -f sparkle_private_key)
           echo "signature=$SIGNATURE" >> $GITHUB_OUTPUT
           rm sparkle_private_key
 
