@@ -39,51 +39,22 @@ public partial class AppState : ObservableObject
     private const int MaxConsecutiveFailures = 5;
     private bool _hasAppeared;
 
-    // Observable properties (using partial properties for AOT compatibility)
-    [ObservableProperty]
-    public partial ViewState ViewState { get; set; } = ViewState.Home;
-
-    [ObservableProperty]
-    public partial JoiningProgress JoiningProgress { get; set; } = JoiningProgress.Searching;
-
-    [ObservableProperty]
-    public partial bool CiderConnected { get; set; }
-
-    [ObservableProperty]
-    public partial bool IsCheckingConnection { get; set; }
-
-    [ObservableProperty]
-    public partial RoomState? RoomState { get; set; }
-
-    [ObservableProperty]
-    public partial TrackInfo? NowPlaying { get; set; }
-
-    [ObservableProperty]
-    public partial PlaybackState? Playback { get; set; }
-
-    [ObservableProperty]
-    public partial string? ErrorMessage { get; set; }
-
-    [ObservableProperty]
-    public partial string? ConnectionError { get; set; }
-
-    [ObservableProperty]
-    public partial bool CiderDisconnected { get; set; }
-
-    [ObservableProperty]
-    public partial bool IsPlaying { get; set; }
-
-    [ObservableProperty]
-    public partial bool IsHost { get; set; }
-
-    [ObservableProperty]
-    public partial bool IsInRoom { get; set; }
-
-    [ObservableProperty]
-    public partial string? JoiningRoomCode { get; set; }
-
-    [ObservableProperty]
-    public partial SyncStatus? SyncStatus { get; set; }
+    // Observable properties
+    [ObservableProperty] private ViewState _viewState = ViewState.Home;
+    [ObservableProperty] private JoiningProgress _joiningProgress = JoiningProgress.Searching;
+    [ObservableProperty] private bool _ciderConnected;
+    [ObservableProperty] private bool _isCheckingConnection;
+    [ObservableProperty] private RoomState? _roomState;
+    [ObservableProperty] private TrackInfo? _nowPlaying;
+    [ObservableProperty] private PlaybackState? _playback;
+    [ObservableProperty] private string? _errorMessage;
+    [ObservableProperty] private string? _connectionError;
+    [ObservableProperty] private bool _ciderDisconnected;
+    [ObservableProperty] private bool _isPlaying;
+    [ObservableProperty] private bool _isHost;
+    [ObservableProperty] private bool _isInRoom;
+    [ObservableProperty] private string? _joiningRoomCode;
+    [ObservableProperty] private SyncStatus? _syncStatus;
 
     // Persisted settings
     public string DisplayName
