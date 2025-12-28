@@ -15,7 +15,7 @@ env:
 
 jobs:
   build-macos:
-    runs-on: macos-14
+    runs-on: macos-26
     env:
       SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
       MACOS_CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
@@ -50,11 +50,6 @@ jobs:
             cider-core/target/aarch64-apple-darwin/release/libcider_core.dylib \
             cider-core/target/x86_64-apple-darwin/release/libcider_core.dylib \
             -output apps/macos/CiderTogether/Frameworks/libcider_core.dylib
-
-      - name: Setup Xcode
-        uses: maxim-lobanov/setup-xcode@v1
-        with:
-          xcode-version: latest-stable
 
       - name: Import signing certificate
         if: env.MACOS_CERTIFICATE != ''
