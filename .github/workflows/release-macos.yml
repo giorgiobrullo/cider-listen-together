@@ -38,6 +38,8 @@ jobs:
           cargo build --release -p cider-core
           mkdir -p apps/macos/CiderTogether/Frameworks
           cp target/release/libcider_core.dylib apps/macos/CiderTogether/Frameworks/
+          # Fix the dylib install name so app looks in Frameworks folder
+          install_name_tool -id @rpath/libcider_core.dylib apps/macos/CiderTogether/Frameworks/libcider_core.dylib
 
       - name: Import signing certificate
         if: env.MACOS_CERTIFICATE != ''
@@ -64,6 +66,25 @@ jobs:
             DEVELOPMENT_TEAM="${{ secrets.DEVELOPMENT_TEAM || '' }}" \
             CODE_SIGN_STYLE="Manual" \
             build
+
+      - name: Fix dylib references in app bundle
+        run: |
+          APP_PATH="apps/macos/CiderTogether/build/Build/Products/Release/CiderTogether.app"
+          BINARY="$APP_PATH/Contents/MacOS/CiderTogether"
+          FRAMEWORKS_DIR="$APP_PATH/Contents/Frameworks"
+
+          # Create Frameworks dir in app bundle and copy dylib
+          mkdir -p "$FRAMEWORKS_DIR"
+          cp apps/macos/CiderTogether/Frameworks/libcider_core.dylib "$FRAMEWORKS_DIR/"
+
+          # Get the current dylib path embedded in the binary
+          OLD_PATH=$(otool -L "$BINARY" | grep libcider_core | awk '{print $1}')
+
+          # Fix the binary to look for dylib via @rpath
+          install_name_tool -change "$OLD_PATH" @rpath/libcider_core.dylib "$BINARY"
+
+          # Add rpath to binary if not present
+          install_name_tool -add_rpath @executable_path/../Frameworks "$BINARY" 2>/dev/null || true
 
       - name: Notarize app
         if: env.APPLE_ID != '' && env.NOTARIZATION_PASSWORD != ''
