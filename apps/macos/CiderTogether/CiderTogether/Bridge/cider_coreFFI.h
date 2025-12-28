@@ -50,9 +50,9 @@ typedef void (*UniffiRustFutureContinuationCallback)(uint64_t, int8_t
     );
 
 #endif
-#ifndef UNIFFI_FFIDEF_FOREIGN_FUTURE_FREE
-#define UNIFFI_FFIDEF_FOREIGN_FUTURE_FREE
-typedef void (*UniffiForeignFutureFree)(uint64_t
+#ifndef UNIFFI_FFIDEF_FOREIGN_FUTURE_DROPPED_CALLBACK
+#define UNIFFI_FFIDEF_FOREIGN_FUTURE_DROPPED_CALLBACK
+typedef void (*UniffiForeignFutureDroppedCallback)(uint64_t
     );
 
 #endif
@@ -62,192 +62,184 @@ typedef void (*UniffiCallbackInterfaceFree)(uint64_t
     );
 
 #endif
-#ifndef UNIFFI_FFIDEF_FOREIGN_FUTURE
-#define UNIFFI_FFIDEF_FOREIGN_FUTURE
-typedef struct UniffiForeignFuture {
-    uint64_t handle;
-    UniffiForeignFutureFree _Nonnull free;
-} UniffiForeignFuture;
+#ifndef UNIFFI_FFIDEF_CALLBACK_INTERFACE_CLONE
+#define UNIFFI_FFIDEF_CALLBACK_INTERFACE_CLONE
+typedef uint64_t (*UniffiCallbackInterfaceClone)(uint64_t
+    );
 
 #endif
-#ifndef UNIFFI_FFIDEF_FOREIGN_FUTURE_STRUCT_U8
-#define UNIFFI_FFIDEF_FOREIGN_FUTURE_STRUCT_U8
-typedef struct UniffiForeignFutureStructU8 {
+#ifndef UNIFFI_FFIDEF_FOREIGN_FUTURE_DROPPED_CALLBACK_STRUCT
+#define UNIFFI_FFIDEF_FOREIGN_FUTURE_DROPPED_CALLBACK_STRUCT
+typedef struct UniffiForeignFutureDroppedCallbackStruct {
+    uint64_t handle;
+    UniffiForeignFutureDroppedCallback _Nonnull free;
+} UniffiForeignFutureDroppedCallbackStruct;
+
+#endif
+#ifndef UNIFFI_FFIDEF_FOREIGN_FUTURE_RESULT_U8
+#define UNIFFI_FFIDEF_FOREIGN_FUTURE_RESULT_U8
+typedef struct UniffiForeignFutureResultU8 {
     uint8_t returnValue;
     RustCallStatus callStatus;
-} UniffiForeignFutureStructU8;
+} UniffiForeignFutureResultU8;
 
 #endif
 #ifndef UNIFFI_FFIDEF_FOREIGN_FUTURE_COMPLETE_U8
 #define UNIFFI_FFIDEF_FOREIGN_FUTURE_COMPLETE_U8
-typedef void (*UniffiForeignFutureCompleteU8)(uint64_t, UniffiForeignFutureStructU8
+typedef void (*UniffiForeignFutureCompleteU8)(uint64_t, UniffiForeignFutureResultU8
     );
 
 #endif
-#ifndef UNIFFI_FFIDEF_FOREIGN_FUTURE_STRUCT_I8
-#define UNIFFI_FFIDEF_FOREIGN_FUTURE_STRUCT_I8
-typedef struct UniffiForeignFutureStructI8 {
+#ifndef UNIFFI_FFIDEF_FOREIGN_FUTURE_RESULT_I8
+#define UNIFFI_FFIDEF_FOREIGN_FUTURE_RESULT_I8
+typedef struct UniffiForeignFutureResultI8 {
     int8_t returnValue;
     RustCallStatus callStatus;
-} UniffiForeignFutureStructI8;
+} UniffiForeignFutureResultI8;
 
 #endif
 #ifndef UNIFFI_FFIDEF_FOREIGN_FUTURE_COMPLETE_I8
 #define UNIFFI_FFIDEF_FOREIGN_FUTURE_COMPLETE_I8
-typedef void (*UniffiForeignFutureCompleteI8)(uint64_t, UniffiForeignFutureStructI8
+typedef void (*UniffiForeignFutureCompleteI8)(uint64_t, UniffiForeignFutureResultI8
     );
 
 #endif
-#ifndef UNIFFI_FFIDEF_FOREIGN_FUTURE_STRUCT_U16
-#define UNIFFI_FFIDEF_FOREIGN_FUTURE_STRUCT_U16
-typedef struct UniffiForeignFutureStructU16 {
+#ifndef UNIFFI_FFIDEF_FOREIGN_FUTURE_RESULT_U16
+#define UNIFFI_FFIDEF_FOREIGN_FUTURE_RESULT_U16
+typedef struct UniffiForeignFutureResultU16 {
     uint16_t returnValue;
     RustCallStatus callStatus;
-} UniffiForeignFutureStructU16;
+} UniffiForeignFutureResultU16;
 
 #endif
 #ifndef UNIFFI_FFIDEF_FOREIGN_FUTURE_COMPLETE_U16
 #define UNIFFI_FFIDEF_FOREIGN_FUTURE_COMPLETE_U16
-typedef void (*UniffiForeignFutureCompleteU16)(uint64_t, UniffiForeignFutureStructU16
+typedef void (*UniffiForeignFutureCompleteU16)(uint64_t, UniffiForeignFutureResultU16
     );
 
 #endif
-#ifndef UNIFFI_FFIDEF_FOREIGN_FUTURE_STRUCT_I16
-#define UNIFFI_FFIDEF_FOREIGN_FUTURE_STRUCT_I16
-typedef struct UniffiForeignFutureStructI16 {
+#ifndef UNIFFI_FFIDEF_FOREIGN_FUTURE_RESULT_I16
+#define UNIFFI_FFIDEF_FOREIGN_FUTURE_RESULT_I16
+typedef struct UniffiForeignFutureResultI16 {
     int16_t returnValue;
     RustCallStatus callStatus;
-} UniffiForeignFutureStructI16;
+} UniffiForeignFutureResultI16;
 
 #endif
 #ifndef UNIFFI_FFIDEF_FOREIGN_FUTURE_COMPLETE_I16
 #define UNIFFI_FFIDEF_FOREIGN_FUTURE_COMPLETE_I16
-typedef void (*UniffiForeignFutureCompleteI16)(uint64_t, UniffiForeignFutureStructI16
+typedef void (*UniffiForeignFutureCompleteI16)(uint64_t, UniffiForeignFutureResultI16
     );
 
 #endif
-#ifndef UNIFFI_FFIDEF_FOREIGN_FUTURE_STRUCT_U32
-#define UNIFFI_FFIDEF_FOREIGN_FUTURE_STRUCT_U32
-typedef struct UniffiForeignFutureStructU32 {
+#ifndef UNIFFI_FFIDEF_FOREIGN_FUTURE_RESULT_U32
+#define UNIFFI_FFIDEF_FOREIGN_FUTURE_RESULT_U32
+typedef struct UniffiForeignFutureResultU32 {
     uint32_t returnValue;
     RustCallStatus callStatus;
-} UniffiForeignFutureStructU32;
+} UniffiForeignFutureResultU32;
 
 #endif
 #ifndef UNIFFI_FFIDEF_FOREIGN_FUTURE_COMPLETE_U32
 #define UNIFFI_FFIDEF_FOREIGN_FUTURE_COMPLETE_U32
-typedef void (*UniffiForeignFutureCompleteU32)(uint64_t, UniffiForeignFutureStructU32
+typedef void (*UniffiForeignFutureCompleteU32)(uint64_t, UniffiForeignFutureResultU32
     );
 
 #endif
-#ifndef UNIFFI_FFIDEF_FOREIGN_FUTURE_STRUCT_I32
-#define UNIFFI_FFIDEF_FOREIGN_FUTURE_STRUCT_I32
-typedef struct UniffiForeignFutureStructI32 {
+#ifndef UNIFFI_FFIDEF_FOREIGN_FUTURE_RESULT_I32
+#define UNIFFI_FFIDEF_FOREIGN_FUTURE_RESULT_I32
+typedef struct UniffiForeignFutureResultI32 {
     int32_t returnValue;
     RustCallStatus callStatus;
-} UniffiForeignFutureStructI32;
+} UniffiForeignFutureResultI32;
 
 #endif
 #ifndef UNIFFI_FFIDEF_FOREIGN_FUTURE_COMPLETE_I32
 #define UNIFFI_FFIDEF_FOREIGN_FUTURE_COMPLETE_I32
-typedef void (*UniffiForeignFutureCompleteI32)(uint64_t, UniffiForeignFutureStructI32
+typedef void (*UniffiForeignFutureCompleteI32)(uint64_t, UniffiForeignFutureResultI32
     );
 
 #endif
-#ifndef UNIFFI_FFIDEF_FOREIGN_FUTURE_STRUCT_U64
-#define UNIFFI_FFIDEF_FOREIGN_FUTURE_STRUCT_U64
-typedef struct UniffiForeignFutureStructU64 {
+#ifndef UNIFFI_FFIDEF_FOREIGN_FUTURE_RESULT_U64
+#define UNIFFI_FFIDEF_FOREIGN_FUTURE_RESULT_U64
+typedef struct UniffiForeignFutureResultU64 {
     uint64_t returnValue;
     RustCallStatus callStatus;
-} UniffiForeignFutureStructU64;
+} UniffiForeignFutureResultU64;
 
 #endif
 #ifndef UNIFFI_FFIDEF_FOREIGN_FUTURE_COMPLETE_U64
 #define UNIFFI_FFIDEF_FOREIGN_FUTURE_COMPLETE_U64
-typedef void (*UniffiForeignFutureCompleteU64)(uint64_t, UniffiForeignFutureStructU64
+typedef void (*UniffiForeignFutureCompleteU64)(uint64_t, UniffiForeignFutureResultU64
     );
 
 #endif
-#ifndef UNIFFI_FFIDEF_FOREIGN_FUTURE_STRUCT_I64
-#define UNIFFI_FFIDEF_FOREIGN_FUTURE_STRUCT_I64
-typedef struct UniffiForeignFutureStructI64 {
+#ifndef UNIFFI_FFIDEF_FOREIGN_FUTURE_RESULT_I64
+#define UNIFFI_FFIDEF_FOREIGN_FUTURE_RESULT_I64
+typedef struct UniffiForeignFutureResultI64 {
     int64_t returnValue;
     RustCallStatus callStatus;
-} UniffiForeignFutureStructI64;
+} UniffiForeignFutureResultI64;
 
 #endif
 #ifndef UNIFFI_FFIDEF_FOREIGN_FUTURE_COMPLETE_I64
 #define UNIFFI_FFIDEF_FOREIGN_FUTURE_COMPLETE_I64
-typedef void (*UniffiForeignFutureCompleteI64)(uint64_t, UniffiForeignFutureStructI64
+typedef void (*UniffiForeignFutureCompleteI64)(uint64_t, UniffiForeignFutureResultI64
     );
 
 #endif
-#ifndef UNIFFI_FFIDEF_FOREIGN_FUTURE_STRUCT_F32
-#define UNIFFI_FFIDEF_FOREIGN_FUTURE_STRUCT_F32
-typedef struct UniffiForeignFutureStructF32 {
+#ifndef UNIFFI_FFIDEF_FOREIGN_FUTURE_RESULT_F32
+#define UNIFFI_FFIDEF_FOREIGN_FUTURE_RESULT_F32
+typedef struct UniffiForeignFutureResultF32 {
     float returnValue;
     RustCallStatus callStatus;
-} UniffiForeignFutureStructF32;
+} UniffiForeignFutureResultF32;
 
 #endif
 #ifndef UNIFFI_FFIDEF_FOREIGN_FUTURE_COMPLETE_F32
 #define UNIFFI_FFIDEF_FOREIGN_FUTURE_COMPLETE_F32
-typedef void (*UniffiForeignFutureCompleteF32)(uint64_t, UniffiForeignFutureStructF32
+typedef void (*UniffiForeignFutureCompleteF32)(uint64_t, UniffiForeignFutureResultF32
     );
 
 #endif
-#ifndef UNIFFI_FFIDEF_FOREIGN_FUTURE_STRUCT_F64
-#define UNIFFI_FFIDEF_FOREIGN_FUTURE_STRUCT_F64
-typedef struct UniffiForeignFutureStructF64 {
+#ifndef UNIFFI_FFIDEF_FOREIGN_FUTURE_RESULT_F64
+#define UNIFFI_FFIDEF_FOREIGN_FUTURE_RESULT_F64
+typedef struct UniffiForeignFutureResultF64 {
     double returnValue;
     RustCallStatus callStatus;
-} UniffiForeignFutureStructF64;
+} UniffiForeignFutureResultF64;
 
 #endif
 #ifndef UNIFFI_FFIDEF_FOREIGN_FUTURE_COMPLETE_F64
 #define UNIFFI_FFIDEF_FOREIGN_FUTURE_COMPLETE_F64
-typedef void (*UniffiForeignFutureCompleteF64)(uint64_t, UniffiForeignFutureStructF64
+typedef void (*UniffiForeignFutureCompleteF64)(uint64_t, UniffiForeignFutureResultF64
     );
 
 #endif
-#ifndef UNIFFI_FFIDEF_FOREIGN_FUTURE_STRUCT_POINTER
-#define UNIFFI_FFIDEF_FOREIGN_FUTURE_STRUCT_POINTER
-typedef struct UniffiForeignFutureStructPointer {
-    void*_Nonnull returnValue;
-    RustCallStatus callStatus;
-} UniffiForeignFutureStructPointer;
-
-#endif
-#ifndef UNIFFI_FFIDEF_FOREIGN_FUTURE_COMPLETE_POINTER
-#define UNIFFI_FFIDEF_FOREIGN_FUTURE_COMPLETE_POINTER
-typedef void (*UniffiForeignFutureCompletePointer)(uint64_t, UniffiForeignFutureStructPointer
-    );
-
-#endif
-#ifndef UNIFFI_FFIDEF_FOREIGN_FUTURE_STRUCT_RUST_BUFFER
-#define UNIFFI_FFIDEF_FOREIGN_FUTURE_STRUCT_RUST_BUFFER
-typedef struct UniffiForeignFutureStructRustBuffer {
+#ifndef UNIFFI_FFIDEF_FOREIGN_FUTURE_RESULT_RUST_BUFFER
+#define UNIFFI_FFIDEF_FOREIGN_FUTURE_RESULT_RUST_BUFFER
+typedef struct UniffiForeignFutureResultRustBuffer {
     RustBuffer returnValue;
     RustCallStatus callStatus;
-} UniffiForeignFutureStructRustBuffer;
+} UniffiForeignFutureResultRustBuffer;
 
 #endif
 #ifndef UNIFFI_FFIDEF_FOREIGN_FUTURE_COMPLETE_RUST_BUFFER
 #define UNIFFI_FFIDEF_FOREIGN_FUTURE_COMPLETE_RUST_BUFFER
-typedef void (*UniffiForeignFutureCompleteRustBuffer)(uint64_t, UniffiForeignFutureStructRustBuffer
+typedef void (*UniffiForeignFutureCompleteRustBuffer)(uint64_t, UniffiForeignFutureResultRustBuffer
     );
 
 #endif
-#ifndef UNIFFI_FFIDEF_FOREIGN_FUTURE_STRUCT_VOID
-#define UNIFFI_FFIDEF_FOREIGN_FUTURE_STRUCT_VOID
-typedef struct UniffiForeignFutureStructVoid {
+#ifndef UNIFFI_FFIDEF_FOREIGN_FUTURE_RESULT_VOID
+#define UNIFFI_FFIDEF_FOREIGN_FUTURE_RESULT_VOID
+typedef struct UniffiForeignFutureResultVoid {
     RustCallStatus callStatus;
-} UniffiForeignFutureStructVoid;
+} UniffiForeignFutureResultVoid;
 
 #endif
 #ifndef UNIFFI_FFIDEF_FOREIGN_FUTURE_COMPLETE_VOID
 #define UNIFFI_FFIDEF_FOREIGN_FUTURE_COMPLETE_VOID
-typedef void (*UniffiForeignFutureCompleteVoid)(uint64_t, UniffiForeignFutureStructVoid
+typedef void (*UniffiForeignFutureCompleteVoid)(uint64_t, UniffiForeignFutureResultVoid
     );
 
 #endif
@@ -324,6 +316,8 @@ typedef void (*UniffiCallbackInterfaceSessionCallbackMethod9)(uint64_t, RustBuff
 #ifndef UNIFFI_FFIDEF_V_TABLE_CALLBACK_INTERFACE_SESSION_CALLBACK
 #define UNIFFI_FFIDEF_V_TABLE_CALLBACK_INTERFACE_SESSION_CALLBACK
 typedef struct UniffiVTableCallbackInterfaceSessionCallback {
+    UniffiCallbackInterfaceFree _Nonnull uniffiFree;
+    UniffiCallbackInterfaceClone _Nonnull uniffiClone;
     UniffiCallbackInterfaceSessionCallbackMethod0 _Nonnull onRoomStateChanged;
     UniffiCallbackInterfaceSessionCallbackMethod1 _Nonnull onTrackChanged;
     UniffiCallbackInterfaceSessionCallbackMethod2 _Nonnull onPlaybackChanged;
@@ -334,129 +328,128 @@ typedef struct UniffiVTableCallbackInterfaceSessionCallback {
     UniffiCallbackInterfaceSessionCallbackMethod7 _Nonnull onConnected;
     UniffiCallbackInterfaceSessionCallbackMethod8 _Nonnull onDisconnected;
     UniffiCallbackInterfaceSessionCallbackMethod9 _Nonnull onSyncStatus;
-    UniffiCallbackInterfaceFree _Nonnull uniffiFree;
 } UniffiVTableCallbackInterfaceSessionCallback;
 
 #endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_CIDER_CORE_FN_CLONE_SESSION
 #define UNIFFI_FFIDEF_UNIFFI_CIDER_CORE_FN_CLONE_SESSION
-void*_Nonnull uniffi_cider_core_fn_clone_session(void*_Nonnull ptr, RustCallStatus *_Nonnull out_status
+uint64_t uniffi_cider_core_fn_clone_session(uint64_t handle, RustCallStatus *_Nonnull out_status
 );
 #endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_CIDER_CORE_FN_FREE_SESSION
 #define UNIFFI_FFIDEF_UNIFFI_CIDER_CORE_FN_FREE_SESSION
-void uniffi_cider_core_fn_free_session(void*_Nonnull ptr, RustCallStatus *_Nonnull out_status
+void uniffi_cider_core_fn_free_session(uint64_t handle, RustCallStatus *_Nonnull out_status
 );
 #endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_CIDER_CORE_FN_CONSTRUCTOR_SESSION_NEW
 #define UNIFFI_FFIDEF_UNIFFI_CIDER_CORE_FN_CONSTRUCTOR_SESSION_NEW
-void*_Nonnull uniffi_cider_core_fn_constructor_session_new(RustCallStatus *_Nonnull out_status
+uint64_t uniffi_cider_core_fn_constructor_session_new(RustCallStatus *_Nonnull out_status
     
 );
 #endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_CIDER_CORE_FN_METHOD_SESSION_BROADCAST_PLAYBACK
 #define UNIFFI_FFIDEF_UNIFFI_CIDER_CORE_FN_METHOD_SESSION_BROADCAST_PLAYBACK
-void uniffi_cider_core_fn_method_session_broadcast_playback(void*_Nonnull ptr, RustBuffer track, int8_t is_playing, uint64_t position_ms, RustCallStatus *_Nonnull out_status
+void uniffi_cider_core_fn_method_session_broadcast_playback(uint64_t ptr, RustBuffer track, int8_t is_playing, uint64_t position_ms, RustCallStatus *_Nonnull out_status
 );
 #endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_CIDER_CORE_FN_METHOD_SESSION_BROADCAST_TRACK_CHANGE
 #define UNIFFI_FFIDEF_UNIFFI_CIDER_CORE_FN_METHOD_SESSION_BROADCAST_TRACK_CHANGE
-void uniffi_cider_core_fn_method_session_broadcast_track_change(void*_Nonnull ptr, RustBuffer track, uint64_t position_ms, RustCallStatus *_Nonnull out_status
+void uniffi_cider_core_fn_method_session_broadcast_track_change(uint64_t ptr, RustBuffer track, uint64_t position_ms, RustCallStatus *_Nonnull out_status
 );
 #endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_CIDER_CORE_FN_METHOD_SESSION_CHECK_CIDER_CONNECTION
 #define UNIFFI_FFIDEF_UNIFFI_CIDER_CORE_FN_METHOD_SESSION_CHECK_CIDER_CONNECTION
-void uniffi_cider_core_fn_method_session_check_cider_connection(void*_Nonnull ptr, RustCallStatus *_Nonnull out_status
+void uniffi_cider_core_fn_method_session_check_cider_connection(uint64_t ptr, RustCallStatus *_Nonnull out_status
 );
 #endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_CIDER_CORE_FN_METHOD_SESSION_CREATE_ROOM
 #define UNIFFI_FFIDEF_UNIFFI_CIDER_CORE_FN_METHOD_SESSION_CREATE_ROOM
-RustBuffer uniffi_cider_core_fn_method_session_create_room(void*_Nonnull ptr, RustBuffer display_name, RustCallStatus *_Nonnull out_status
+RustBuffer uniffi_cider_core_fn_method_session_create_room(uint64_t ptr, RustBuffer display_name, RustCallStatus *_Nonnull out_status
 );
 #endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_CIDER_CORE_FN_METHOD_SESSION_GET_IS_PLAYING
 #define UNIFFI_FFIDEF_UNIFFI_CIDER_CORE_FN_METHOD_SESSION_GET_IS_PLAYING
-int8_t uniffi_cider_core_fn_method_session_get_is_playing(void*_Nonnull ptr, RustCallStatus *_Nonnull out_status
+int8_t uniffi_cider_core_fn_method_session_get_is_playing(uint64_t ptr, RustCallStatus *_Nonnull out_status
 );
 #endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_CIDER_CORE_FN_METHOD_SESSION_GET_NOW_PLAYING
 #define UNIFFI_FFIDEF_UNIFFI_CIDER_CORE_FN_METHOD_SESSION_GET_NOW_PLAYING
-RustBuffer uniffi_cider_core_fn_method_session_get_now_playing(void*_Nonnull ptr, RustCallStatus *_Nonnull out_status
+RustBuffer uniffi_cider_core_fn_method_session_get_now_playing(uint64_t ptr, RustCallStatus *_Nonnull out_status
 );
 #endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_CIDER_CORE_FN_METHOD_SESSION_GET_PLAYBACK_STATE
 #define UNIFFI_FFIDEF_UNIFFI_CIDER_CORE_FN_METHOD_SESSION_GET_PLAYBACK_STATE
-RustBuffer uniffi_cider_core_fn_method_session_get_playback_state(void*_Nonnull ptr, RustCallStatus *_Nonnull out_status
+RustBuffer uniffi_cider_core_fn_method_session_get_playback_state(uint64_t ptr, RustCallStatus *_Nonnull out_status
 );
 #endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_CIDER_CORE_FN_METHOD_SESSION_GET_ROOM_STATE
 #define UNIFFI_FFIDEF_UNIFFI_CIDER_CORE_FN_METHOD_SESSION_GET_ROOM_STATE
-RustBuffer uniffi_cider_core_fn_method_session_get_room_state(void*_Nonnull ptr, RustCallStatus *_Nonnull out_status
+RustBuffer uniffi_cider_core_fn_method_session_get_room_state(uint64_t ptr, RustCallStatus *_Nonnull out_status
 );
 #endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_CIDER_CORE_FN_METHOD_SESSION_IS_HOST
 #define UNIFFI_FFIDEF_UNIFFI_CIDER_CORE_FN_METHOD_SESSION_IS_HOST
-int8_t uniffi_cider_core_fn_method_session_is_host(void*_Nonnull ptr, RustCallStatus *_Nonnull out_status
+int8_t uniffi_cider_core_fn_method_session_is_host(uint64_t ptr, RustCallStatus *_Nonnull out_status
 );
 #endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_CIDER_CORE_FN_METHOD_SESSION_IS_IN_ROOM
 #define UNIFFI_FFIDEF_UNIFFI_CIDER_CORE_FN_METHOD_SESSION_IS_IN_ROOM
-int8_t uniffi_cider_core_fn_method_session_is_in_room(void*_Nonnull ptr, RustCallStatus *_Nonnull out_status
+int8_t uniffi_cider_core_fn_method_session_is_in_room(uint64_t ptr, RustCallStatus *_Nonnull out_status
 );
 #endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_CIDER_CORE_FN_METHOD_SESSION_JOIN_ROOM
 #define UNIFFI_FFIDEF_UNIFFI_CIDER_CORE_FN_METHOD_SESSION_JOIN_ROOM
-void uniffi_cider_core_fn_method_session_join_room(void*_Nonnull ptr, RustBuffer room_code, RustBuffer display_name, RustCallStatus *_Nonnull out_status
+void uniffi_cider_core_fn_method_session_join_room(uint64_t ptr, RustBuffer room_code, RustBuffer display_name, RustCallStatus *_Nonnull out_status
 );
 #endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_CIDER_CORE_FN_METHOD_SESSION_LEAVE_ROOM
 #define UNIFFI_FFIDEF_UNIFFI_CIDER_CORE_FN_METHOD_SESSION_LEAVE_ROOM
-void uniffi_cider_core_fn_method_session_leave_room(void*_Nonnull ptr, RustCallStatus *_Nonnull out_status
+void uniffi_cider_core_fn_method_session_leave_room(uint64_t ptr, RustCallStatus *_Nonnull out_status
 );
 #endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_CIDER_CORE_FN_METHOD_SESSION_SET_CALLBACK
 #define UNIFFI_FFIDEF_UNIFFI_CIDER_CORE_FN_METHOD_SESSION_SET_CALLBACK
-void uniffi_cider_core_fn_method_session_set_callback(void*_Nonnull ptr, uint64_t callback, RustCallStatus *_Nonnull out_status
+void uniffi_cider_core_fn_method_session_set_callback(uint64_t ptr, uint64_t callback, RustCallStatus *_Nonnull out_status
 );
 #endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_CIDER_CORE_FN_METHOD_SESSION_SET_CIDER_TOKEN
 #define UNIFFI_FFIDEF_UNIFFI_CIDER_CORE_FN_METHOD_SESSION_SET_CIDER_TOKEN
-void uniffi_cider_core_fn_method_session_set_cider_token(void*_Nonnull ptr, RustBuffer token, RustCallStatus *_Nonnull out_status
+void uniffi_cider_core_fn_method_session_set_cider_token(uint64_t ptr, RustBuffer token, RustCallStatus *_Nonnull out_status
 );
 #endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_CIDER_CORE_FN_METHOD_SESSION_SYNC_NEXT
 #define UNIFFI_FFIDEF_UNIFFI_CIDER_CORE_FN_METHOD_SESSION_SYNC_NEXT
-void uniffi_cider_core_fn_method_session_sync_next(void*_Nonnull ptr, RustCallStatus *_Nonnull out_status
+void uniffi_cider_core_fn_method_session_sync_next(uint64_t ptr, RustCallStatus *_Nonnull out_status
 );
 #endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_CIDER_CORE_FN_METHOD_SESSION_SYNC_PAUSE
 #define UNIFFI_FFIDEF_UNIFFI_CIDER_CORE_FN_METHOD_SESSION_SYNC_PAUSE
-void uniffi_cider_core_fn_method_session_sync_pause(void*_Nonnull ptr, RustCallStatus *_Nonnull out_status
+void uniffi_cider_core_fn_method_session_sync_pause(uint64_t ptr, RustCallStatus *_Nonnull out_status
 );
 #endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_CIDER_CORE_FN_METHOD_SESSION_SYNC_PLAY
 #define UNIFFI_FFIDEF_UNIFFI_CIDER_CORE_FN_METHOD_SESSION_SYNC_PLAY
-void uniffi_cider_core_fn_method_session_sync_play(void*_Nonnull ptr, RustCallStatus *_Nonnull out_status
+void uniffi_cider_core_fn_method_session_sync_play(uint64_t ptr, RustCallStatus *_Nonnull out_status
 );
 #endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_CIDER_CORE_FN_METHOD_SESSION_SYNC_PREVIOUS
 #define UNIFFI_FFIDEF_UNIFFI_CIDER_CORE_FN_METHOD_SESSION_SYNC_PREVIOUS
-void uniffi_cider_core_fn_method_session_sync_previous(void*_Nonnull ptr, RustCallStatus *_Nonnull out_status
+void uniffi_cider_core_fn_method_session_sync_previous(uint64_t ptr, RustCallStatus *_Nonnull out_status
 );
 #endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_CIDER_CORE_FN_METHOD_SESSION_SYNC_SEEK
 #define UNIFFI_FFIDEF_UNIFFI_CIDER_CORE_FN_METHOD_SESSION_SYNC_SEEK
-void uniffi_cider_core_fn_method_session_sync_seek(void*_Nonnull ptr, uint64_t position_ms, RustCallStatus *_Nonnull out_status
+void uniffi_cider_core_fn_method_session_sync_seek(uint64_t ptr, uint64_t position_ms, RustCallStatus *_Nonnull out_status
 );
 #endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_CIDER_CORE_FN_METHOD_SESSION_TRANSFER_HOST
 #define UNIFFI_FFIDEF_UNIFFI_CIDER_CORE_FN_METHOD_SESSION_TRANSFER_HOST
-void uniffi_cider_core_fn_method_session_transfer_host(void*_Nonnull ptr, RustBuffer peer_id, RustCallStatus *_Nonnull out_status
+void uniffi_cider_core_fn_method_session_transfer_host(uint64_t ptr, RustBuffer peer_id, RustCallStatus *_Nonnull out_status
 );
 #endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_CIDER_CORE_FN_INIT_CALLBACK_VTABLE_SESSIONCALLBACK
 #define UNIFFI_FFIDEF_UNIFFI_CIDER_CORE_FN_INIT_CALLBACK_VTABLE_SESSIONCALLBACK
-void uniffi_cider_core_fn_init_callback_vtable_sessioncallback(UniffiVTableCallbackInterfaceSessionCallback* _Nonnull vtable
+void uniffi_cider_core_fn_init_callback_vtable_sessioncallback(const UniffiVTableCallbackInterfaceSessionCallback* _Nonnull vtable
 );
 #endif
 #ifndef UNIFFI_FFIDEF_FFI_CIDER_CORE_RUSTBUFFER_ALLOC
@@ -677,26 +670,6 @@ void ffi_cider_core_rust_future_free_f64(uint64_t handle
 #ifndef UNIFFI_FFIDEF_FFI_CIDER_CORE_RUST_FUTURE_COMPLETE_F64
 #define UNIFFI_FFIDEF_FFI_CIDER_CORE_RUST_FUTURE_COMPLETE_F64
 double ffi_cider_core_rust_future_complete_f64(uint64_t handle, RustCallStatus *_Nonnull out_status
-);
-#endif
-#ifndef UNIFFI_FFIDEF_FFI_CIDER_CORE_RUST_FUTURE_POLL_POINTER
-#define UNIFFI_FFIDEF_FFI_CIDER_CORE_RUST_FUTURE_POLL_POINTER
-void ffi_cider_core_rust_future_poll_pointer(uint64_t handle, UniffiRustFutureContinuationCallback _Nonnull callback, uint64_t callback_data
-);
-#endif
-#ifndef UNIFFI_FFIDEF_FFI_CIDER_CORE_RUST_FUTURE_CANCEL_POINTER
-#define UNIFFI_FFIDEF_FFI_CIDER_CORE_RUST_FUTURE_CANCEL_POINTER
-void ffi_cider_core_rust_future_cancel_pointer(uint64_t handle
-);
-#endif
-#ifndef UNIFFI_FFIDEF_FFI_CIDER_CORE_RUST_FUTURE_FREE_POINTER
-#define UNIFFI_FFIDEF_FFI_CIDER_CORE_RUST_FUTURE_FREE_POINTER
-void ffi_cider_core_rust_future_free_pointer(uint64_t handle
-);
-#endif
-#ifndef UNIFFI_FFIDEF_FFI_CIDER_CORE_RUST_FUTURE_COMPLETE_POINTER
-#define UNIFFI_FFIDEF_FFI_CIDER_CORE_RUST_FUTURE_COMPLETE_POINTER
-void*_Nonnull ffi_cider_core_rust_future_complete_pointer(uint64_t handle, RustCallStatus *_Nonnull out_status
 );
 #endif
 #ifndef UNIFFI_FFIDEF_FFI_CIDER_CORE_RUST_FUTURE_POLL_RUST_BUFFER

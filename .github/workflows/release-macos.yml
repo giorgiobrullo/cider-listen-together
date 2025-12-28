@@ -1,0 +1,257 @@
+name: Release macOS
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (e.g., 1.0.0)'
+        required: true
+
+env:
+  RUST_BACKTRACE: 1
+
+jobs:
+  build-macos:
+    runs-on: macos-14
+    env:
+      SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
+      MACOS_CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
+      APPLE_ID: ${{ secrets.APPLE_ID }}
+      NOTARIZATION_PASSWORD: ${{ secrets.NOTARIZATION_PASSWORD }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: "cider-core -> target"
+
+      - name: Build Rust library (arm64)
+        run: |
+          cd cider-core
+          cargo build --release --target aarch64-apple-darwin
+
+      - name: Build Rust library (x86_64)
+        run: |
+          rustup target add x86_64-apple-darwin
+          cd cider-core
+          cargo build --release --target x86_64-apple-darwin
+
+      - name: Create universal binary
+        run: |
+          lipo -create \
+            cider-core/target/aarch64-apple-darwin/release/libcider_core.dylib \
+            cider-core/target/x86_64-apple-darwin/release/libcider_core.dylib \
+            -output apps/macos/CiderTogether/Frameworks/libcider_core.dylib
+
+      - name: Setup Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      - name: Import signing certificate
+        if: env.MACOS_CERTIFICATE != ''
+        env:
+          MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+        run: |
+          echo "$MACOS_CERTIFICATE" | base64 --decode > certificate.p12
+          security create-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" build.keychain
+          security import certificate.p12 -k build.keychain -P "$MACOS_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" build.keychain
+          rm certificate.p12
+
+      - name: Build macOS app
+        run: |
+          cd apps/macos/CiderTogether
+          xcodebuild -scheme CiderTogether \
+            -configuration Release \
+            -derivedDataPath build \
+            -destination "platform=macOS" \
+            CODE_SIGN_IDENTITY="${{ secrets.CODE_SIGN_IDENTITY || '-' }}" \
+            DEVELOPMENT_TEAM="${{ secrets.DEVELOPMENT_TEAM || '' }}" \
+            CODE_SIGN_STYLE="Manual" \
+            build
+
+      - name: Notarize app
+        if: env.APPLE_ID != '' && env.NOTARIZATION_PASSWORD != ''
+        env:
+          TEAM_ID: ${{ secrets.DEVELOPMENT_TEAM }}
+        run: |
+          APP_PATH="apps/macos/CiderTogether/build/Build/Products/Release/CiderTogether.app"
+
+          # Create ZIP for notarization
+          ditto -c -k --keepParent "$APP_PATH" CiderTogether.zip
+
+          # Submit for notarization
+          xcrun notarytool submit CiderTogether.zip \
+            --apple-id "$APPLE_ID" \
+            --password "$NOTARIZATION_PASSWORD" \
+            --team-id "$TEAM_ID" \
+            --wait
+
+          # Staple the notarization ticket
+          xcrun stapler staple "$APP_PATH"
+
+          rm CiderTogether.zip
+
+      - name: Create DMG
+        run: |
+          APP_PATH="apps/macos/CiderTogether/build/Build/Products/Release/CiderTogether.app"
+
+          # Create DMG folder structure
+          mkdir -p dmg_contents
+          cp -R "$APP_PATH" dmg_contents/
+          ln -s /Applications dmg_contents/Applications
+
+          # Create DMG
+          hdiutil create -volname "CiderTogether" \
+            -srcfolder dmg_contents \
+            -ov -format UDZO \
+            CiderTogether.dmg
+
+          rm -rf dmg_contents
+
+      - name: Sign DMG
+        if: env.MACOS_CERTIFICATE != ''
+        run: |
+          codesign --force --sign "${{ secrets.CODE_SIGN_IDENTITY }}" CiderTogether.dmg
+
+      - name: Generate Sparkle signature
+        id: sparkle
+        if: env.SPARKLE_PRIVATE_KEY != ''
+        run: |
+          # Install Sparkle tools
+          brew install --cask sparkle
+
+          # Sign the DMG with Sparkle EdDSA key
+          echo "$SPARKLE_PRIVATE_KEY" > sparkle_private_key
+          SIGNATURE=$(/usr/local/Caskroom/sparkle/*/Sparkle.framework/Versions/B/Resources/bin/sign_update CiderTogether.dmg -f sparkle_private_key)
+          echo "signature=$SIGNATURE" >> $GITHUB_OUTPUT
+          rm sparkle_private_key
+
+          # Get file size
+          FILE_SIZE=$(stat -f%z CiderTogether.dmg)
+          echo "file_size=$FILE_SIZE" >> $GITHUB_OUTPUT
+
+      - name: Get version
+        id: version
+        run: |
+          if [ -n "${{ github.event.inputs.version }}" ]; then
+            echo "version=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
+          else
+            echo "version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Rename DMG with version
+        run: |
+          mv CiderTogether.dmg CiderTogether-${{ steps.version.outputs.version }}.dmg
+
+      - name: Update appcast.xml
+        if: steps.sparkle.outputs.signature != ''
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          SIGNATURE="${{ steps.sparkle.outputs.signature }}"
+          FILE_SIZE="${{ steps.sparkle.outputs.file_size }}"
+          DOWNLOAD_URL="https://github.com/giorgiobrullo/cider-listen-together/releases/download/v${VERSION}/CiderTogether-${VERSION}.dmg"
+          DATE=$(date -R)
+
+          cat > appcast.xml << EOF
+          <?xml version="1.0" encoding="utf-8"?>
+          <rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" xmlns:dc="http://purl.org/dc/elements/1.1/">
+            <channel>
+              <title>CiderTogether Updates</title>
+              <link>https://raw.githubusercontent.com/giorgiobrullo/cider-listen-together/main/appcast.xml</link>
+              <description>Updates for CiderTogether</description>
+              <language>en</language>
+              <item>
+                <title>Version ${VERSION}</title>
+                <pubDate>${DATE}</pubDate>
+                <sparkle:version>${VERSION}</sparkle:version>
+                <sparkle:shortVersionString>${VERSION}</sparkle:shortVersionString>
+                <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
+                <enclosure url="${DOWNLOAD_URL}"
+                           sparkle:edSignature="${SIGNATURE}"
+                           length="${FILE_SIZE}"
+                           type="application/octet-stream"/>
+              </item>
+            </channel>
+          </rss>
+          EOF
+
+      - name: Upload DMG artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: CiderTogether-macos
+          path: CiderTogether-${{ steps.version.outputs.version }}.dmg
+
+      - name: Upload appcast artifact
+        if: steps.sparkle.outputs.signature != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: appcast
+          path: appcast.xml
+
+  release:
+    needs: build-macos
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download DMG
+        uses: actions/download-artifact@v4
+        with:
+          name: CiderTogether-macos
+
+      - name: Download appcast (if exists)
+        uses: actions/download-artifact@v4
+        with:
+          name: appcast
+        continue-on-error: true
+
+      - name: Get version
+        id: version
+        run: |
+          if [ -n "${{ github.event.inputs.version }}" ]; then
+            echo "version=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
+          else
+            echo "version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ steps.version.outputs.version }}
+          name: v${{ steps.version.outputs.version }}
+          draft: false
+          prerelease: false
+          files: |
+            CiderTogether-${{ steps.version.outputs.version }}.dmg
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Update appcast in repo
+        if: hashFiles('appcast.xml') != ''
+        run: |
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+          git fetch origin main
+          git checkout main
+          mv appcast.xml appcast.xml.new
+          git pull origin main
+          mv appcast.xml.new appcast.xml
+          git add appcast.xml
+          git commit -m "Update appcast.xml for v${{ steps.version.outputs.version }}" || exit 0
+          git push origin main

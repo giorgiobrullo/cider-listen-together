@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" xmlns:dc="http://purl.org/dc/elements/1.1/">
+  <channel>
+    <title>CiderTogether Updates</title>
+    <link>https://raw.githubusercontent.com/giorgiobrullo/cider-listen-together/main/appcast.xml</link>
+    <description>Updates for CiderTogether</description>
+    <language>en</language>
+    <!-- Items will be added automatically by GitHub Actions on release -->
+  </channel>
+</rss>

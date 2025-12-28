@@ -556,11 +556,7 @@ impl NetworkManager {
     /// Leave the current room
     fn leave_room(&mut self, swarm: &mut Swarm<CiderBehaviour>) -> Result<(), NetworkError> {
         if let Some(topic) = self.room_topic.take() {
-            swarm
-                .behaviour_mut()
-                .gossipsub
-                .unsubscribe(&topic)
-                .map_err(|e| NetworkError::Libp2p(format!("{:?}", e)))?;
+            let _ = swarm.behaviour_mut().gossipsub.unsubscribe(&topic);
             info!("Left room");
         }
         self.room_peers.clear();

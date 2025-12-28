@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!-- Sparkle Updates -->
+    <key>SUFeedURL</key>
+    <string>https://raw.githubusercontent.com/giorgiobrullo/cider-listen-together/main/appcast.xml</string>
+    <key>SUPublicEDKey</key>
+    <string>a0lyYrvZGuQh9eRjVYufe3laTjH6FJ/onOnamhVwxIo=</string>
+
+    <!-- Allow Sparkle to check for updates automatically -->
+    <key>SUEnableAutomaticChecks</key>
+    <true/>
+</dict>
+</plist>

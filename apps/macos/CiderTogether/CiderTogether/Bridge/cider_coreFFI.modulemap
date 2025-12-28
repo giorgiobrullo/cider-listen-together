@@ -1,4 +1,7 @@
 module cider_coreFFI {
     header "cider_coreFFI.h"
     export *
+    use "Darwin"
+    use "_Builtin_stdbool"
+    use "_Builtin_stdint"
 }
