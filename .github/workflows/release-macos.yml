@@ -28,6 +28,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for changelog generation
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
@@ -202,6 +204,31 @@ jobs:
             echo "version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
           fi
 
+      - name: Generate changelog
+        id: changelog
+        run: |
+          # Find the previous tag
+          PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+
+          if [ -n "$PREV_TAG" ]; then
+            echo "Generating changelog from $PREV_TAG to HEAD"
+            # Get commits since previous tag, format nicely
+            CHANGELOG=$(git log ${PREV_TAG}..HEAD --pretty=format:"- %s" --no-merges | grep -v "^- Merge" || true)
+          else
+            echo "No previous tag found, using all commits"
+            CHANGELOG=$(git log --pretty=format:"- %s" --no-merges -20 | grep -v "^- Merge" || true)
+          fi
+
+          # Save changelog to file for artifact
+          echo "$CHANGELOG" > changelog.txt
+
+          # Also output for use in this job (escape for GitHub Actions)
+          {
+            echo "changelog<<EOF"
+            echo "$CHANGELOG"
+            echo "EOF"
+          } >> $GITHUB_OUTPUT
+
       - name: Rename DMG with version
         run: |
           mv CiderTogether.dmg CiderTogether-${{ steps.version.outputs.version }}.dmg
@@ -215,6 +242,9 @@ jobs:
           DOWNLOAD_URL="https://github.com/giorgiobrullo/cider-listen-together/releases/download/v${VERSION}/CiderTogether-${VERSION}.dmg"
           DATE=$(date -R)
 
+          # Convert changelog to HTML list
+          CHANGELOG_HTML=$(cat changelog.txt | sed 's/^- /<li>/g' | sed 's/$/<\/li>/g' | tr '\n' ' ')
+
           cat > appcast.xml << EOF
           <?xml version="1.0" encoding="utf-8"?>
           <rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" xmlns:dc="http://purl.org/dc/elements/1.1/">
@@ -225,6 +255,7 @@ jobs:
               <language>en</language>
               <item>
                 <title>Version ${VERSION}</title>
+                <description><![CDATA[<h2>What's New</h2><ul>${CHANGELOG_HTML}</ul>]]></description>
                 <pubDate>${DATE}</pubDate>
                 <sparkle:version>${VERSION}</sparkle:version>
                 <sparkle:shortVersionString>${VERSION}</sparkle:shortVersionString>
@@ -256,6 +287,12 @@ jobs:
           name: appcast
           path: appcast.xml
 
+      - name: Upload changelog artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: changelog
+          path: changelog.txt
+
   release:
     needs: build-macos
     runs-on: ubuntu-latest
@@ -276,6 +313,11 @@ jobs:
           name: appcast
         continue-on-error: true
 
+      - name: Download changelog
+        uses: actions/download-artifact@v4
+        with:
+          name: changelog
+
       - name: Get version
         id: version
         run: |
@@ -285,11 +327,23 @@ jobs:
             echo "version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
           fi
 
+      - name: Read changelog
+        id: changelog
+        run: |
+          {
+            echo "body<<EOF"
+            echo "## What's Changed"
+            echo ""
+            cat changelog.txt
+            echo "EOF"
+          } >> $GITHUB_OUTPUT
+
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
           tag_name: v${{ steps.version.outputs.version }}
           name: v${{ steps.version.outputs.version }}
+          body: ${{ steps.changelog.outputs.body }}
           draft: false
           prerelease: false
           files: |
