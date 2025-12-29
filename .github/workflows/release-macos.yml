@@ -9,6 +9,9 @@ on:
       version:
         description: 'Version to release (e.g., 1.0.0)'
         required: true
+      changelog:
+        description: 'Custom changelog (optional, one item per line)'
+        required: false
 
 env:
   RUST_BACKTRACE: 1
@@ -212,16 +215,21 @@ jobs:
       - name: Generate changelog
         id: changelog
         run: |
-          # Find the previous tag
-          PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
-
-          if [ -n "$PREV_TAG" ]; then
-            echo "Generating changelog from $PREV_TAG to HEAD"
-            # Get commits since previous tag, format nicely
-            CHANGELOG=$(git log ${PREV_TAG}..HEAD --pretty=format:"- %s" --no-merges | grep -v "^- Merge" || true)
+          # Use custom changelog if provided, otherwise generate from commits
+          if [ -n "${{ github.event.inputs.changelog }}" ]; then
+            echo "Using custom changelog"
+            CHANGELOG=$(echo "${{ github.event.inputs.changelog }}" | sed 's/^/- /')
           else
-            echo "No previous tag found, using all commits"
-            CHANGELOG=$(git log --pretty=format:"- %s" --no-merges -20 | grep -v "^- Merge" || true)
+            # Find the previous tag
+            PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+
+            if [ -n "$PREV_TAG" ]; then
+              echo "Generating changelog from $PREV_TAG to HEAD"
+              CHANGELOG=$(git log ${PREV_TAG}..HEAD --pretty=format:"- %s" --no-merges | grep -v "^- Merge" || true)
+            else
+              echo "No previous tag found, using all commits"
+              CHANGELOG=$(git log --pretty=format:"- %s" --no-merges -20 | grep -v "^- Merge" || true)
+            fi
           fi
 
           # Save changelog to file for artifact
