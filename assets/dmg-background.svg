@@ -20,6 +20,12 @@
   <!-- Background -->
   <rect width="660" height="400" fill="url(#bg)"/>
 
+  <!-- Light pill backgrounds for icon labels (black text on dark bg needs contrast) -->
+  <!-- Icons centered at (180,170) and (480,170), size 160, so bottom at y=250 -->
+  <!-- Labels appear ~5-10px below icon bottom -->
+  <rect x="110" y="252" width="140" height="30" rx="15" fill="#ffffff" opacity="0.9"/>
+  <rect x="410" y="252" width="140" height="30" rx="15" fill="#ffffff" opacity="0.9"/>
+
   <!-- Subtle grid pattern -->
   <g opacity="0.03">
     <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
