@@ -37,15 +37,35 @@ final class UpdaterController: ObservableObject {
         updater.checkForUpdates()
     }
 
-    /// Detects if the app was installed via Homebrew by checking its location
+    /// Detects if the app was installed via Homebrew by checking if Homebrew's symlink points to us
     private static func detectHomebrewInstall() -> Bool {
-        let bundlePath = Bundle.main.bundlePath
+        let fileManager = FileManager.default
+        let appPath = Bundle.main.bundlePath
 
-        // Resolve symlinks to get the real installation path
-        let realPath = (bundlePath as NSString).resolvingSymlinksInPath
+        // Homebrew keeps a symlink in Caskroom pointing to the installed app
+        // Apple Silicon: /opt/homebrew/Caskroom/cider-together/VERSION/CiderTogether.app -> /Applications/...
+        // Intel: /usr/local/Caskroom/cider-together/VERSION/CiderTogether.app -> /Applications/...
+        let caskroomBases = [
+            "/opt/homebrew/Caskroom/cider-together",
+            "/usr/local/Caskroom/cider-together"
+        ]
 
-        // Homebrew installs to /opt/homebrew/Caskroom (Apple Silicon)
-        // or /usr/local/Caskroom (Intel)
-        return realPath.contains("/Caskroom/") || realPath.contains("/homebrew/")
+        for base in caskroomBases {
+            guard fileManager.fileExists(atPath: base),
+                  let versions = try? fileManager.contentsOfDirectory(atPath: base) else {
+                continue
+            }
+
+            // Check each version directory for a symlink pointing to our app
+            for version in versions where !version.hasPrefix(".") {
+                let symlinkPath = "\(base)/\(version)/CiderTogether.app"
+                if let target = try? fileManager.destinationOfSymbolicLink(atPath: symlinkPath),
+                   target == appPath {
+                    return true
+                }
+            }
+        }
+
+        return false
     }
 }
