@@ -310,3 +310,48 @@ jobs:
           git add appcast.xml
           git commit -m "Update appcast.xml for v${{ steps.version.outputs.version }}" || exit 0
           git push origin main
+
+      - name: Update Homebrew tap
+        env:
+          HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+        if: env.HOMEBREW_TAP_TOKEN != ''
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          DMG_FILE="CiderTogether-${VERSION}.dmg"
+          SHA256=$(shasum -a 256 "$DMG_FILE" | cut -d' ' -f1)
+
+          # Clone the tap repo
+          git clone https://x-access-token:${HOMEBREW_TAP_TOKEN}@github.com/giorgiobrullo/homebrew-tap.git tap
+          cd tap
+
+          # Update the cask
+          cat > Casks/cider-together.rb << EOF
+          cask "cider-together" do
+            version "${VERSION}"
+            sha256 "${SHA256}"
+
+            url "https://github.com/giorgiobrullo/cider-listen-together/releases/download/v#{version}/CiderTogether-#{version}.dmg"
+            name "CiderTogether"
+            desc "Listen to music together with friends using Cider"
+            homepage "https://github.com/giorgiobrullo/cider-listen-together"
+
+            livecheck do
+              url :url
+              strategy :github_latest
+            end
+
+            app "CiderTogether.app"
+
+            zap trash: [
+              "~/Library/Application Support/CiderTogether",
+              "~/Library/Preferences/giorgiobrullo.com.CiderTogether.plist",
+              "~/Library/Caches/giorgiobrullo.com.CiderTogether",
+            ]
+          end
+          EOF
+
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+          git add Casks/cider-together.rb
+          git commit -m "Update cider-together to v${VERSION}"
+          git push

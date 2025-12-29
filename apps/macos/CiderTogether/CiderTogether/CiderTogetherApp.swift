@@ -35,10 +35,15 @@ struct CiderTogetherApp: App {
                 }
             }
             CommandGroup(after: .appInfo) {
-                Button("Check for Updates...") {
-                    updaterController.checkForUpdates()
+                if updaterController.isHomebrewInstall {
+                    Button("Updates managed by Homebrew") {}
+                        .disabled(true)
+                } else {
+                    Button("Check for Updates...") {
+                        updaterController.checkForUpdates()
+                    }
+                    .disabled(!updaterController.canCheckForUpdates)
                 }
-                .disabled(!updaterController.canCheckForUpdates)
             }
             // Room menu
             CommandMenu("Room") {
