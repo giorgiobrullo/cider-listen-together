@@ -31,6 +31,15 @@ jobs:
         with:
           fetch-depth: 0  # Full history for changelog generation
 
+      - name: Get version
+        id: version
+        run: |
+          if [ -n "${{ github.event.inputs.version }}" ]; then
+            echo "version=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
+          else
+            echo "version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+          fi
+
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
 
@@ -73,6 +82,8 @@ jobs:
             DEVELOPMENT_TEAM="${{ secrets.DEVELOPMENT_TEAM || '' }}" \
             CODE_SIGN_STYLE="Manual" \
             ENABLE_HARDENED_RUNTIME=YES \
+            MARKETING_VERSION="${{ steps.version.outputs.version }}" \
+            CURRENT_PROJECT_VERSION="${{ github.run_number }}" \
             build
 
       - name: Fix dylib references and sign with hardened runtime
@@ -197,15 +208,6 @@ jobs:
           # Get file size
           FILE_SIZE=$(stat -f%z CiderTogether.dmg)
           echo "file_size=$FILE_SIZE" >> $GITHUB_OUTPUT
-
-      - name: Get version
-        id: version
-        run: |
-          if [ -n "${{ github.event.inputs.version }}" ]; then
-            echo "version=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
-          else
-            echo "version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
-          fi
 
       - name: Generate changelog
         id: changelog
