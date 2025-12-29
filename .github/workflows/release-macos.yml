@@ -70,13 +70,15 @@ jobs:
             CODE_SIGN_IDENTITY="${{ secrets.CODE_SIGN_IDENTITY || '-' }}" \
             DEVELOPMENT_TEAM="${{ secrets.DEVELOPMENT_TEAM || '' }}" \
             CODE_SIGN_STYLE="Manual" \
+            ENABLE_HARDENED_RUNTIME=YES \
             build
 
-      - name: Fix dylib references in app bundle
+      - name: Fix dylib references and sign with hardened runtime
         run: |
           APP_PATH="apps/macos/CiderTogether/build/Build/Products/Release/CiderTogether.app"
           BINARY="$APP_PATH/Contents/MacOS/CiderTogether"
           FRAMEWORKS_DIR="$APP_PATH/Contents/Frameworks"
+          SIGN_IDENTITY="${{ secrets.CODE_SIGN_IDENTITY || '-' }}"
 
           # Create Frameworks dir in app bundle and copy dylib
           mkdir -p "$FRAMEWORKS_DIR"
@@ -91,10 +93,35 @@ jobs:
           # Add rpath to binary if not present
           install_name_tool -add_rpath @executable_path/../Frameworks "$BINARY" 2>/dev/null || true
 
-          # Sign the dylib and app bundle (use certificate if available, otherwise ad-hoc)
-          SIGN_IDENTITY="${{ secrets.CODE_SIGN_IDENTITY || '-' }}"
-          codesign --force --sign "$SIGN_IDENTITY" "$FRAMEWORKS_DIR/libcider_core.dylib"
-          codesign --force --deep --sign "$SIGN_IDENTITY" "$APP_PATH"
+          # Sign all components with hardened runtime (--options runtime)
+          # Sign nested components first (inside-out signing)
+
+          # Sign Sparkle XPC services
+          find "$FRAMEWORKS_DIR/Sparkle.framework" -name "*.xpc" -type d | while read xpc; do
+            codesign --force --options runtime --sign "$SIGN_IDENTITY" "$xpc"
+          done
+
+          # Sign Sparkle helper apps
+          find "$FRAMEWORKS_DIR/Sparkle.framework" -name "*.app" -type d | while read app; do
+            codesign --force --options runtime --sign "$SIGN_IDENTITY" "$app"
+          done
+
+          # Sign Sparkle executables (Autoupdate, etc)
+          find "$FRAMEWORKS_DIR/Sparkle.framework/Versions/B" -maxdepth 1 -type f -perm +111 | while read exe; do
+            codesign --force --options runtime --sign "$SIGN_IDENTITY" "$exe"
+          done
+
+          # Sign Sparkle framework
+          codesign --force --options runtime --sign "$SIGN_IDENTITY" "$FRAMEWORKS_DIR/Sparkle.framework"
+
+          # Sign our dylib
+          codesign --force --options runtime --sign "$SIGN_IDENTITY" "$FRAMEWORKS_DIR/libcider_core.dylib"
+
+          # Sign the main app bundle
+          codesign --force --options runtime --sign "$SIGN_IDENTITY" "$APP_PATH"
+
+          # Verify signing
+          codesign --verify --deep --strict --verbose=2 "$APP_PATH"
 
       - name: Notarize app
         if: env.APPLE_ID != '' && env.NOTARIZATION_PASSWORD != ''
