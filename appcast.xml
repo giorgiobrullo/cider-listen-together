@@ -7,13 +7,13 @@
     <language>en</language>
     <item>
       <title>Version 1.0.0</title>
-      <pubDate>Sun, 28 Dec 2025 20:22:37 +0000</pubDate>
+      <pubDate>Mon, 29 Dec 2025 14:06:36 +0000</pubDate>
       <sparkle:version>1.0.0</sparkle:version>
       <sparkle:shortVersionString>1.0.0</sparkle:shortVersionString>
       <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
       <enclosure url="https://github.com/giorgiobrullo/cider-listen-together/releases/download/v1.0.0/CiderTogether-1.0.0.dmg"
-                 sparkle:edSignature="sparkle:edSignature=rNyplHkuBxf94myQZczbx7PsDtPf4evuFLIsE7uhbJRq2BPwrMwW41MdnxZHpWEFOxu41HsbwQ9YrXv0kqE0AA== length=13281886"
-                 length="13281886"
+                 sparkle:edSignature="sparkle:edSignature=9yX38gfhFahR7uo+MuEswzBuMJkFE6U+i5x7SaIi96t0oWJSIzZkdcAC/+c2ECn/5DjmWePHQViQn13RnShNBw== length=13341507"
+                 length="13341507"
                  type="application/octet-stream"/>
     </item>
   </channel>
