@@ -304,7 +304,8 @@ impl Session {
         let room_code_for_timeout = room_code_str.clone();
 
         self.runtime.spawn(async move {
-            tokio::time::sleep(Duration::from_secs(10)).await;
+            // 30 seconds to allow DHT discovery over internet (can take 10-30s)
+            tokio::time::sleep(Duration::from_secs(30)).await;
 
             // Check if we're still in joining state for this room
             let room = room_clone.read().unwrap();

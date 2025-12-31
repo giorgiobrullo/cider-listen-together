@@ -8,8 +8,8 @@
 
 use futures::StreamExt;
 use libp2p::{
-    dcutr, gossipsub, identify, identity, mdns, noise, relay, swarm::NetworkBehaviour,
-    swarm::SwarmEvent, tcp, yamux, Multiaddr, PeerId, Swarm,
+    dcutr, gossipsub, identify, identity, kad, mdns, noise, relay, swarm::NetworkBehaviour,
+    swarm::SwarmEvent, tcp, yamux, Multiaddr, PeerId, StreamProtocol, Swarm,
 };
 use std::collections::HashSet;
 use std::time::Duration;
@@ -22,10 +22,18 @@ use crate::sync::SyncMessage;
 /// Public IPFS bootstrap nodes with direct TCP/QUIC addresses
 /// Using direct IP addresses to avoid DNS resolution issues with /dnsaddr
 const BOOTSTRAP_NODES: &[&str] = &[
-    // mars.i.ipfs.io - TCP
+    // mars.i.ipfs.io
     "/ip4/104.131.131.82/tcp/4001/p2p/QmaCpDMGvV2BGHeYERUEnRQAwe3N8SzbUtfsmvsqQLuvuJ",
-    // mars.i.ipfs.io - QUIC
     "/ip4/104.131.131.82/udp/4001/quic-v1/p2p/QmaCpDMGvV2BGHeYERUEnRQAwe3N8SzbUtfsmvsqQLuvuJ",
+    // saturn.i.ipfs.io
+    "/ip4/178.128.122.218/tcp/4001/p2p/QmbLHAnMoJPWSCR5Zhtx6BHJX9KiKNN6tpvbUcqanj75Nb",
+    "/ip4/178.128.122.218/udp/4001/quic-v1/p2p/QmbLHAnMoJPWSCR5Zhtx6BHJX9KiKNN6tpvbUcqanj75Nb",
+    // pluto.i.ipfs.io
+    "/ip4/139.178.68.217/tcp/4001/p2p/QmNnooDu7bfjPFoTZYxMNLWUQJyrVwtbZg5gBMjTezGAJN",
+    "/ip4/139.178.68.217/udp/4001/quic-v1/p2p/QmNnooDu7bfjPFoTZYxMNLWUQJyrVwtbZg5gBMjTezGAJN",
+    // neptune.i.ipfs.io
+    "/ip4/128.199.219.111/tcp/4001/p2p/QmQCU2EcMqAqQPR2i9bChDtGNJchTbq5TbXJJ16u19uLTa",
+    "/ip4/128.199.219.111/udp/4001/quic-v1/p2p/QmQCU2EcMqAqQPR2i9bChDtGNJchTbq5TbXJJ16u19uLTa",
 ];
 
 /// Network-related errors
@@ -53,7 +61,7 @@ pub enum NetworkError {
     JoinTimeout,
 }
 
-/// Combined network behaviour with mDNS + Relay for internet connectivity
+/// Combined network behaviour with mDNS + Relay + DHT for internet connectivity
 #[derive(NetworkBehaviour)]
 pub struct CiderBehaviour {
     /// Relay client for NAT traversal
@@ -66,6 +74,8 @@ pub struct CiderBehaviour {
     identify: identify::Behaviour,
     /// Pub/sub for room messages
     gossipsub: gossipsub::Behaviour,
+    /// Kademlia DHT for peer discovery over internet
+    kademlia: kad::Behaviour<kad::store::MemoryStore>,
 }
 
 /// Events emitted by the network manager
@@ -149,6 +159,8 @@ pub struct NetworkManager {
     discovered_peers: HashSet<PeerId>,
     /// Current room topic (if in a room)
     room_topic: Option<gossipsub::IdentTopic>,
+    /// Current room code (for DHT cleanup)
+    room_code: Option<String>,
     /// Peers subscribed to our room topic
     room_peers: HashSet<PeerId>,
     /// Connected relay servers
@@ -168,6 +180,7 @@ impl NetworkManager {
             keypair,
             discovered_peers: HashSet::new(),
             room_topic: None,
+            room_code: None,
             room_peers: HashSet::new(),
             connected_relays: HashSet::new(),
         })
@@ -264,12 +277,33 @@ impl NetworkManager {
                     keypair.public(),
                 ));
 
+                // Kademlia DHT for peer discovery
+                // Use IPFS protocol to leverage the public IPFS DHT network
+                let local_peer_id = keypair.public().to_peer_id();
+                let store = kad::store::MemoryStore::new(local_peer_id);
+                let mut kademlia_config = kad::Config::new(StreamProtocol::new("/ipfs/kad/1.0.0"));
+                kademlia_config.set_query_timeout(Duration::from_secs(60));
+                let mut kademlia = kad::Behaviour::with_config(local_peer_id, store, kademlia_config);
+                // Set to server mode so we actively participate in the DHT
+                kademlia.set_mode(Some(kad::Mode::Server));
+
+                // Add bootstrap nodes to Kademlia routing table
+                for addr_str in BOOTSTRAP_NODES {
+                    if let Ok(addr) = addr_str.parse::<Multiaddr>() {
+                        // Extract peer ID from the address
+                        if let Some(libp2p::multiaddr::Protocol::P2p(peer_id)) = addr.iter().last() {
+                            kademlia.add_address(&peer_id, addr.clone());
+                        }
+                    }
+                }
+
                 Ok(CiderBehaviour {
                     relay_client,
                     dcutr,
                     mdns,
                     identify,
                     gossipsub,
+                    kademlia,
                 })
             })
             .map_err(|e| NetworkError::Transport(e.to_string()))?
@@ -313,6 +347,13 @@ impl NetworkManager {
 
         // Connect to bootstrap nodes for internet connectivity
         self.connect_to_bootstrap_nodes(&mut swarm);
+
+        // Bootstrap the Kademlia DHT
+        if let Err(e) = swarm.behaviour_mut().kademlia.bootstrap() {
+            warn!("Failed to bootstrap Kademlia DHT: {:?}", e);
+        } else {
+            info!("Kademlia DHT bootstrap started");
+        }
 
         // Notify ready
         let _ = event_tx.send(NetworkEvent::Ready {
@@ -499,6 +540,55 @@ impl NetworkManager {
                 }
             }
 
+            // Kademlia DHT events
+            SwarmEvent::Behaviour(CiderBehaviourEvent::Kademlia(event)) => {
+                match event {
+                    kad::Event::RoutingUpdated { peer, .. } => {
+                        debug!("Kademlia routing updated for peer: {}", peer);
+                    }
+                    kad::Event::OutboundQueryProgressed { result, .. } => {
+                        match result {
+                            kad::QueryResult::Bootstrap(Ok(kad::BootstrapOk { num_remaining, .. })) => {
+                                if num_remaining == 0 {
+                                    info!("Kademlia bootstrap complete");
+                                }
+                            }
+                            kad::QueryResult::Bootstrap(Err(e)) => {
+                                warn!("Kademlia bootstrap error: {:?}", e);
+                            }
+                            kad::QueryResult::GetProviders(Ok(kad::GetProvidersOk::FoundProviders { providers, .. })) => {
+                                info!("DHT found {} providers for room", providers.len());
+                                for provider in providers {
+                                    if provider != self.local_peer_id {
+                                        debug!("Found room provider: {}", provider);
+                                        // Add to gossipsub and try to connect
+                                        swarm.behaviour_mut().gossipsub.add_explicit_peer(&provider);
+                                        // Dial the peer through known addresses
+                                        if let Err(e) = swarm.dial(provider) {
+                                            debug!("Failed to dial provider {}: {}", provider, e);
+                                        }
+                                    }
+                                }
+                            }
+                            kad::QueryResult::GetProviders(Ok(kad::GetProvidersOk::FinishedWithNoAdditionalRecord { .. })) => {
+                                debug!("DHT provider search finished");
+                            }
+                            kad::QueryResult::GetProviders(Err(e)) => {
+                                debug!("DHT get providers error: {:?}", e);
+                            }
+                            kad::QueryResult::StartProviding(Ok(kad::AddProviderOk { key })) => {
+                                info!("DHT: Now providing room {:?}", String::from_utf8_lossy(key.as_ref()));
+                            }
+                            kad::QueryResult::StartProviding(Err(e)) => {
+                                warn!("DHT start providing error: {:?}", e);
+                            }
+                            _ => {}
+                        }
+                    }
+                    _ => {}
+                }
+            }
+
             _ => {}
         }
     }
@@ -521,8 +611,17 @@ impl NetworkManager {
             .subscribe(&topic)
             .map_err(|e| NetworkError::Libp2p(e.to_string()))?;
 
+        // Advertise this room in the DHT so others can find us
+        let room_key = kad::RecordKey::new(&format!("cider-room-{}", room_code));
+        if let Err(e) = swarm.behaviour_mut().kademlia.start_providing(room_key.clone()) {
+            warn!("Failed to start providing room in DHT: {:?}", e);
+        } else {
+            info!("DHT: Advertising room {} to the network", room_code);
+        }
+
         info!("Created and subscribed to room: {}", room_code);
         self.room_topic = Some(topic);
+        self.room_code = Some(room_code.to_string());
         self.room_peers.clear();
 
         Ok(())
@@ -546,8 +645,19 @@ impl NetworkManager {
             .subscribe(&topic)
             .map_err(|e| NetworkError::Libp2p(e.to_string()))?;
 
+        // Search DHT for peers in this room
+        let room_key = kad::RecordKey::new(&format!("cider-room-{}", room_code));
+        swarm.behaviour_mut().kademlia.get_providers(room_key.clone());
+        info!("DHT: Searching for peers in room {}", room_code);
+
+        // Also advertise ourselves so others can find us
+        if let Err(e) = swarm.behaviour_mut().kademlia.start_providing(room_key) {
+            warn!("Failed to start providing room in DHT: {:?}", e);
+        }
+
         info!("Joined room: {}", room_code);
         self.room_topic = Some(topic);
+        self.room_code = Some(room_code.to_string());
         self.room_peers.clear();
 
         Ok(())
@@ -559,6 +669,14 @@ impl NetworkManager {
             let _ = swarm.behaviour_mut().gossipsub.unsubscribe(&topic);
             info!("Left room");
         }
+
+        // Stop providing in DHT
+        if let Some(code) = self.room_code.take() {
+            let room_key = kad::RecordKey::new(&format!("cider-room-{}", code));
+            swarm.behaviour_mut().kademlia.stop_providing(&room_key);
+            info!("DHT: Stopped advertising room {}", code);
+        }
+
         self.room_peers.clear();
         Ok(())
     }
