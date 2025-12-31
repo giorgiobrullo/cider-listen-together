@@ -89,6 +89,8 @@ pub enum NetworkEvent {
     PeerSubscribed { peer_id: String },
     /// A peer unsubscribed from our room topic
     PeerUnsubscribed { peer_id: String },
+    /// Current listening addresses (sent after room creation/join)
+    ListeningAddresses { addresses: Vec<String> },
     /// Error occurred
     Error(String),
 }
@@ -104,6 +106,8 @@ pub enum NetworkCommand {
     LeaveRoom,
     /// Broadcast a message to the room
     Broadcast { message: SyncMessage },
+    /// Dial a peer directly by multiaddr (for manual connection)
+    DialPeer { multiaddr: String },
     /// Shutdown the network
     Shutdown,
 }
@@ -147,6 +151,14 @@ impl NetworkHandle {
     pub fn shutdown(&self) {
         let _ = self.command_tx.send(NetworkCommand::Shutdown);
     }
+
+    pub fn dial_peer(&self, multiaddr: &str) -> Result<(), NetworkError> {
+        self.command_tx
+            .send(NetworkCommand::DialPeer {
+                multiaddr: multiaddr.to_string(),
+            })
+            .map_err(|_| NetworkError::Libp2p("Network task closed".to_string()))
+    }
 }
 
 /// Manages P2P networking - runs in a background task
@@ -165,6 +177,8 @@ pub struct NetworkManager {
     room_peers: HashSet<PeerId>,
     /// Connected relay servers
     connected_relays: HashSet<PeerId>,
+    /// Our listening addresses (for signaling)
+    listening_addresses: Vec<String>,
 }
 
 impl NetworkManager {
@@ -183,6 +197,7 @@ impl NetworkManager {
             room_code: None,
             room_peers: HashSet::new(),
             connected_relays: HashSet::new(),
+            listening_addresses: Vec::new(),
         })
     }
 
@@ -283,9 +298,12 @@ impl NetworkManager {
                 let store = kad::store::MemoryStore::new(local_peer_id);
                 let mut kademlia_config = kad::Config::new(StreamProtocol::new("/ipfs/kad/1.0.0"));
                 kademlia_config.set_query_timeout(Duration::from_secs(60));
+                // Allow Kademlia to auto-detect mode based on whether we're publicly reachable
+                // (Server if reachable, Client if behind NAT)
+                kademlia_config.set_kbucket_inserts(kad::BucketInserts::OnConnected);
                 let mut kademlia = kad::Behaviour::with_config(local_peer_id, store, kademlia_config);
-                // Set to server mode so we actively participate in the DHT
-                kademlia.set_mode(Some(kad::Mode::Server));
+                // Don't force server mode - let libp2p auto-detect based on connectivity
+                // kademlia.set_mode(None) is the default and enables auto-mode
 
                 // Add bootstrap nodes to Kademlia routing table
                 for addr_str in BOOTSTRAP_NODES {
@@ -372,11 +390,21 @@ impl NetworkManager {
                         NetworkCommand::CreateRoom { room_code } => {
                             if let Err(e) = self.create_room(&mut swarm, &room_code) {
                                 let _ = event_tx.send(NetworkEvent::Error(e.to_string()));
+                            } else {
+                                // Send listening addresses for signaling
+                                let _ = event_tx.send(NetworkEvent::ListeningAddresses {
+                                    addresses: self.listening_addresses.clone(),
+                                });
                             }
                         }
                         NetworkCommand::JoinRoom { room_code } => {
                             if let Err(e) = self.join_room(&mut swarm, &room_code) {
                                 let _ = event_tx.send(NetworkEvent::Error(e.to_string()));
+                            } else {
+                                // Send listening addresses for signaling
+                                let _ = event_tx.send(NetworkEvent::ListeningAddresses {
+                                    addresses: self.listening_addresses.clone(),
+                                });
                             }
                         }
                         NetworkCommand::LeaveRoom => {
@@ -385,6 +413,19 @@ impl NetworkManager {
                         NetworkCommand::Broadcast { message } => {
                             if let Err(e) = self.broadcast(&mut swarm, &message) {
                                 debug!("Broadcast error (may be no peers yet): {}", e);
+                            }
+                        }
+                        NetworkCommand::DialPeer { multiaddr } => {
+                            match multiaddr.parse::<Multiaddr>() {
+                                Ok(addr) => {
+                                    info!("Dialing peer at {}", addr);
+                                    if let Err(e) = swarm.dial(addr) {
+                                        warn!("Failed to dial peer: {}", e);
+                                    }
+                                }
+                                Err(e) => {
+                                    warn!("Invalid multiaddr {}: {}", multiaddr, e);
+                                }
                             }
                         }
                         NetworkCommand::Shutdown => {
@@ -408,6 +449,9 @@ impl NetworkManager {
         match event {
             SwarmEvent::NewListenAddr { address, .. } => {
                 info!("Listening on {}", address);
+                // Track address with our peer ID appended for dial-ability
+                let full_addr = format!("{}/p2p/{}", address, self.local_peer_id);
+                self.listening_addresses.push(full_addr);
             }
 
             // mDNS discovered peers (local network)
@@ -522,8 +566,8 @@ impl NetworkManager {
                 }
             }
 
-            SwarmEvent::ConnectionEstablished { peer_id, .. } => {
-                debug!("Connection established with {}", peer_id);
+            SwarmEvent::ConnectionEstablished { peer_id, endpoint, .. } => {
+                info!("Connection established with {} via {:?}", peer_id, endpoint);
                 // Add to gossipsub for mesh
                 swarm.behaviour_mut().gossipsub.add_explicit_peer(&peer_id);
             }
@@ -536,21 +580,28 @@ impl NetworkManager {
 
             SwarmEvent::OutgoingConnectionError { peer_id, error, .. } => {
                 if let Some(peer) = peer_id {
-                    debug!("Failed to connect to {}: {}", peer, error);
+                    warn!("Failed to connect to {}: {}", peer, error);
+                } else {
+                    warn!("Outgoing connection error: {}", error);
                 }
             }
 
             // Kademlia DHT events
             SwarmEvent::Behaviour(CiderBehaviourEvent::Kademlia(event)) => {
                 match event {
-                    kad::Event::RoutingUpdated { peer, .. } => {
-                        debug!("Kademlia routing updated for peer: {}", peer);
+                    kad::Event::RoutingUpdated { peer, is_new_peer, .. } => {
+                        info!("Kademlia routing updated: peer={}, new={}", peer, is_new_peer);
                     }
-                    kad::Event::OutboundQueryProgressed { result, .. } => {
+                    kad::Event::ModeChanged { new_mode } => {
+                        info!("Kademlia mode changed to: {:?}", new_mode);
+                    }
+                    kad::Event::OutboundQueryProgressed { id, result, stats, step } => {
+                        debug!("Kademlia query {:?} progressed: step={:?}, stats={:?}", id, step, stats);
                         match result {
-                            kad::QueryResult::Bootstrap(Ok(kad::BootstrapOk { num_remaining, .. })) => {
+                            kad::QueryResult::Bootstrap(Ok(kad::BootstrapOk { peer, num_remaining })) => {
+                                info!("Kademlia bootstrap progress: peer={}, remaining={}", peer, num_remaining);
                                 if num_remaining == 0 {
-                                    info!("Kademlia bootstrap complete");
+                                    info!("Kademlia bootstrap complete!");
                                 }
                             }
                             kad::QueryResult::Bootstrap(Err(e)) => {
@@ -582,10 +633,29 @@ impl NetworkManager {
                             kad::QueryResult::StartProviding(Err(e)) => {
                                 warn!("DHT start providing error: {:?}", e);
                             }
-                            _ => {}
+                            kad::QueryResult::GetClosestPeers(Ok(ok)) => {
+                                info!("DHT GetClosestPeers: found {} peers", ok.peers.len());
+                            }
+                            kad::QueryResult::GetClosestPeers(Err(e)) => {
+                                warn!("DHT GetClosestPeers error: {:?}", e);
+                            }
+                            other => {
+                                debug!("DHT query result: {:?}", other);
+                            }
                         }
                     }
-                    _ => {}
+                    kad::Event::InboundRequest { request } => {
+                        debug!("Kademlia inbound request: {:?}", request);
+                    }
+                    kad::Event::UnroutablePeer { peer } => {
+                        debug!("Kademlia unroutable peer: {}", peer);
+                    }
+                    kad::Event::PendingRoutablePeer { peer, address } => {
+                        debug!("Kademlia pending routable peer: {} at {}", peer, address);
+                    }
+                    kad::Event::RoutablePeer { peer, address } => {
+                        info!("Kademlia routable peer: {} at {}", peer, address);
+                    }
                 }
             }
 

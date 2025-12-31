@@ -120,6 +120,9 @@ pub async fn handle_network_event(
                 cb.on_error(e);
             }
         }
+
+        // Handled in session.rs before reaching here
+        NetworkEvent::ListeningAddresses { .. } => {}
     }
 }
 

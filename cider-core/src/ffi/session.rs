@@ -35,6 +35,8 @@ pub struct Session {
     listener_ping_cancel: Arc<RwLock<Option<tokio::sync::oneshot::Sender<()>>>>,
     /// Seek offset calibrator for compensating Cider buffer latency
     seek_calibrator: SharedSeekCalibrator,
+    /// Signaling client for internet peer discovery
+    signaling: Arc<crate::network::SignalingClient>,
 }
 
 #[uniffi::export]
@@ -76,6 +78,7 @@ impl Session {
             latency_tracker: latency::new_shared_tracker(),
             listener_ping_cancel: Arc::new(RwLock::new(None)),
             seek_calibrator: seek_calibrator::new_shared_calibrator(),
+            signaling: Arc::new(crate::network::SignalingClient::new()),
         }
     }
 
@@ -262,6 +265,58 @@ impl Session {
         handle
             .join_room(&room_code_str)
             .map_err(|e| CoreError::NetworkError(e.to_string()))?;
+
+        // Poll signaling for host addresses (internet discovery)
+        let signaling_clone = Arc::clone(&self.signaling);
+        let handle_for_signaling = handle.clone();
+        let room_for_signaling = Arc::clone(&self.room);
+        let room_code_for_signaling = room_code_str.clone();
+        let local_peer_id = self.local_peer_id.read().unwrap().clone().unwrap_or_default();
+
+        self.runtime.spawn(async move {
+            // Poll signaling a few times for host addresses
+            for poll_attempt in 1..=6 {
+                // Check if we're still joining
+                let still_joining = {
+                    let room = room_for_signaling.read().unwrap();
+                    matches!(&*room, Room::Joining { room_code, .. } if room_code == &room_code_for_signaling)
+                };
+
+                if !still_joining {
+                    debug!("No longer joining, stopping signaling poll");
+                    break;
+                }
+
+                info!("Signaling poll attempt {}/6 for room {}", poll_attempt, room_code_for_signaling);
+
+                match signaling_clone.poll_room(&room_code_for_signaling).await {
+                    Ok(messages) => {
+                        for msg in messages {
+                            // Skip our own messages
+                            if msg.peer_id == local_peer_id {
+                                continue;
+                            }
+
+                            info!("Found host {} with {} addresses via signaling", msg.peer_id, msg.addresses.len());
+
+                            // Dial each address
+                            for addr in &msg.addresses {
+                                info!("Dialing host address from signaling: {}", addr);
+                                if let Err(e) = handle_for_signaling.dial_peer(addr) {
+                                    warn!("Failed to dial {}: {}", addr, e);
+                                }
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        warn!("Signaling poll failed: {}", e);
+                    }
+                }
+
+                // Wait before next poll (5 seconds between polls)
+                tokio::time::sleep(Duration::from_secs(5)).await;
+            }
+        });
 
         // Send join request with retry - the gossipsub mesh takes time to form
         // so the first few broadcasts might not reach the host
@@ -626,10 +681,42 @@ impl Session {
         let network_handle_clone = Arc::clone(&self.network_handle);
         let latency_tracker_clone = Arc::clone(&self.latency_tracker);
         let seek_calibrator_clone = Arc::clone(&self.seek_calibrator);
+        let signaling_clone = Arc::clone(&self.signaling);
         let local_peer_id = peer_id.clone();
 
         self.runtime.spawn(async move {
+            use crate::network::NetworkEvent;
+
             while let Some(event) = event_rx.recv().await {
+                // Handle ListeningAddresses for signaling (internet discovery)
+                if let NetworkEvent::ListeningAddresses { addresses } = &event {
+                    // Get room code if we're in a room
+                    let room_code = {
+                        let room = room_clone.read().unwrap();
+                        match &*room {
+                            Room::Active(state) => Some(state.room_code.clone()),
+                            Room::Joining { room_code, .. } => Some(room_code.clone()),
+                            _ => None,
+                        }
+                    };
+
+                    if let Some(code) = room_code {
+                        let addresses = addresses.clone();
+                        let signaling = Arc::clone(&signaling_clone);
+                        let peer_id = local_peer_id.clone();
+
+                        info!("Publishing {} addresses to signaling for room {}", addresses.len(), code);
+
+                        // Publish to signaling in a separate task
+                        tokio::spawn(async move {
+                            if let Err(e) = signaling.publish_room(&code, &peer_id, addresses).await {
+                                warn!("Failed to publish to signaling: {}", e);
+                            }
+                        });
+                    }
+                    continue;
+                }
+
                 handle_network_event(
                     event,
                     &room_clone,
