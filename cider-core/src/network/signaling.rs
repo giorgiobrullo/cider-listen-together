@@ -2,12 +2,14 @@
 //!
 //! Uses the free ntfy.sh pub/sub service to exchange peer addresses.
 //! No signup required, works immediately over the internet.
+//! Can be configured to use a custom ntfy.sh-compatible server.
 
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use tracing::{debug, info};
 
-const NTFY_BASE_URL: &str = "https://ntfy.sh";
+/// Default signaling server URL
+const DEFAULT_SIGNALING_URL: &str = "https://ntfy.sh";
 
 /// Message published to signaling channel
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -18,15 +20,31 @@ pub struct SignalingMessage {
 }
 
 /// Signaling client for room discovery
+#[derive(Clone)]
 pub struct SignalingClient {
     client: Client,
+    /// Base URL for the signaling server (e.g., "https://ntfy.sh")
+    base_url: String,
 }
 
 impl SignalingClient {
+    /// Create a new signaling client with default ntfy.sh server
     pub fn new() -> Self {
+        Self::with_url(DEFAULT_SIGNALING_URL.to_string())
+    }
+
+    /// Create a new signaling client with custom server URL
+    pub fn with_url(base_url: String) -> Self {
+        info!("Signaling client using server: {}", base_url);
         Self {
             client: Client::new(),
+            base_url,
         }
+    }
+
+    /// Get the signaling server URL
+    pub fn base_url(&self) -> &str {
+        &self.base_url
     }
 
     /// Normalize room code for topic naming - strips hyphens and lowercases
@@ -47,7 +65,7 @@ impl SignalingClient {
     ) -> Result<(), String> {
         let normalized = Self::normalize_room_code(room_code);
         let topic = format!("cider-together-{}", normalized);
-        let url = format!("{}/{}", NTFY_BASE_URL, topic);
+        let url = format!("{}/{}", self.base_url, topic);
 
         let msg = SignalingMessage {
             peer_id: peer_id.to_string(),
@@ -77,7 +95,7 @@ impl SignalingClient {
         let normalized = Self::normalize_room_code(room_code);
         let topic = format!("cider-together-{}", normalized);
         // Use the JSON endpoint with poll=1 to get cached messages
-        let url = format!("{}/{}/json?poll=1&since=5m", NTFY_BASE_URL, topic);
+        let url = format!("{}/{}/json?poll=1&since=5m", self.base_url, topic);
 
         debug!("Signaling: Polling room {} (topic: {})", room_code, topic);
 

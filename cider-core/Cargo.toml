@@ -38,6 +38,7 @@ libp2p = { version = "0.56", features = [
     "macros",
     "quic",
     "mdns",
+    "ping",
     "rsa",  # Required for IPFS bootstrap nodes that use RSA keys
 ] }
 
@@ -54,3 +55,4 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 # Utilities
 futures = "0.3"
 parking_lot = "0.12"
+rand = "0.8"

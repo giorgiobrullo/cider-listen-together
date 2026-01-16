@@ -8,7 +8,7 @@
 
 use futures::StreamExt;
 use libp2p::{
-    dcutr, gossipsub, identify, identity, kad, mdns, noise, relay, swarm::NetworkBehaviour,
+    dcutr, gossipsub, identify, identity, kad, mdns, noise, ping, relay, swarm::NetworkBehaviour,
     swarm::SwarmEvent, tcp, yamux, Multiaddr, PeerId, StreamProtocol, Swarm,
 };
 use std::collections::HashSet;
@@ -19,9 +19,9 @@ use tracing::{debug, info, warn};
 
 use crate::sync::SyncMessage;
 
-/// Public IPFS bootstrap nodes with direct TCP/QUIC addresses
+/// Default IPFS bootstrap nodes with direct TCP/QUIC addresses
 /// Using direct IP addresses to avoid DNS resolution issues with /dnsaddr
-const BOOTSTRAP_NODES: &[&str] = &[
+const DEFAULT_BOOTSTRAP_NODES: &[&str] = &[
     // mars.i.ipfs.io
     "/ip4/104.131.131.82/tcp/4001/p2p/QmaCpDMGvV2BGHeYERUEnRQAwe3N8SzbUtfsmvsqQLuvuJ",
     "/ip4/104.131.131.82/udp/4001/quic-v1/p2p/QmaCpDMGvV2BGHeYERUEnRQAwe3N8SzbUtfsmvsqQLuvuJ",
@@ -35,6 +35,45 @@ const BOOTSTRAP_NODES: &[&str] = &[
     "/ip4/128.199.219.111/tcp/4001/p2p/QmQCU2EcMqAqQPR2i9bChDtGNJchTbq5TbXJJ16u19uLTa",
     "/ip4/128.199.219.111/udp/4001/quic-v1/p2p/QmQCU2EcMqAqQPR2i9bChDtGNJchTbq5TbXJJ16u19uLTa",
 ];
+
+/// Default signaling server URL (ntfy.sh)
+const DEFAULT_SIGNALING_URL: &str = "https://ntfy.sh";
+
+/// Network configuration
+#[derive(Debug, Clone)]
+pub struct NetworkConfig {
+    /// Bootstrap nodes for DHT discovery
+    /// If empty, uses DEFAULT_BOOTSTRAP_NODES
+    pub bootstrap_nodes: Vec<String>,
+    /// Signaling server URL (e.g., "https://ntfy.sh" or your own)
+    pub signaling_url: String,
+    /// Whether to enable mDNS for local network discovery
+    pub enable_mdns: bool,
+    /// Whether to enable DHT for internet discovery
+    pub enable_dht: bool,
+}
+
+impl Default for NetworkConfig {
+    fn default() -> Self {
+        Self {
+            bootstrap_nodes: Vec::new(), // Use defaults
+            signaling_url: DEFAULT_SIGNALING_URL.to_string(),
+            enable_mdns: true,
+            enable_dht: true,
+        }
+    }
+}
+
+impl NetworkConfig {
+    /// Get the effective bootstrap nodes (custom or defaults)
+    pub fn get_bootstrap_nodes(&self) -> Vec<&str> {
+        if self.bootstrap_nodes.is_empty() {
+            DEFAULT_BOOTSTRAP_NODES.iter().copied().collect()
+        } else {
+            self.bootstrap_nodes.iter().map(|s| s.as_str()).collect()
+        }
+    }
+}
 
 /// Network-related errors
 #[derive(Debug, Error)]
@@ -64,6 +103,8 @@ pub enum NetworkError {
 /// Combined network behaviour with mDNS + Relay + DHT for internet connectivity
 #[derive(NetworkBehaviour)]
 pub struct CiderBehaviour {
+    /// Ping for connection keep-alive
+    ping: ping::Behaviour,
     /// Relay client for NAT traversal
     relay_client: relay::client::Behaviour,
     /// DCUtR for hole punching (direct connections through relay)
@@ -91,6 +132,17 @@ pub enum NetworkEvent {
     PeerUnsubscribed { peer_id: String },
     /// Current listening addresses (sent after room creation/join)
     ListeningAddresses { addresses: Vec<String> },
+    /// Bootstrap/connectivity status update
+    BootstrapStatus {
+        /// Number of bootstrap nodes we're connected to
+        connected_bootstrap_nodes: usize,
+        /// Total bootstrap nodes configured
+        total_bootstrap_nodes: usize,
+        /// Number of active relay connections
+        relay_connections: usize,
+        /// Whether DHT bootstrap completed
+        dht_ready: bool,
+    },
     /// Error occurred
     Error(String),
 }
@@ -167,6 +219,8 @@ pub struct NetworkManager {
     local_peer_id: PeerId,
     /// Our keypair
     keypair: identity::Keypair,
+    /// Network configuration
+    config: NetworkConfig,
     /// Discovered peers (via mDNS or relay)
     discovered_peers: HashSet<PeerId>,
     /// Current room topic (if in a room)
@@ -179,26 +233,67 @@ pub struct NetworkManager {
     connected_relays: HashSet<PeerId>,
     /// Our listening addresses (for signaling)
     listening_addresses: Vec<String>,
+    /// Connected bootstrap node peer IDs
+    connected_bootstrap_peers: HashSet<PeerId>,
+    /// Expected bootstrap peer IDs (extracted from config)
+    expected_bootstrap_peers: HashSet<PeerId>,
+    /// Whether DHT bootstrap has completed
+    dht_bootstrapped: bool,
 }
 
 impl NetworkManager {
-    /// Create a new network manager
+    /// Create a new network manager with default config
     pub fn new() -> Result<Self, NetworkError> {
+        Self::with_config(NetworkConfig::default())
+    }
+
+    /// Create a new network manager with custom config
+    pub fn with_config(config: NetworkConfig) -> Result<Self, NetworkError> {
         let keypair = identity::Keypair::generate_ed25519();
         let local_peer_id = PeerId::from(keypair.public());
 
         info!("Local peer ID: {}", local_peer_id);
 
+        // Extract expected bootstrap peer IDs from config
+        let mut expected_bootstrap_peers = HashSet::new();
+        for addr_str in config.get_bootstrap_nodes() {
+            if let Ok(addr) = addr_str.parse::<Multiaddr>() {
+                if let Some(peer_id) = addr.iter().find_map(|p| {
+                    if let libp2p::multiaddr::Protocol::P2p(id) = p {
+                        Some(id)
+                    } else {
+                        None
+                    }
+                }) {
+                    expected_bootstrap_peers.insert(peer_id);
+                }
+            }
+        }
+        info!(
+            "Network config: {} bootstrap nodes, signaling: {}",
+            expected_bootstrap_peers.len(),
+            config.signaling_url
+        );
+
         Ok(Self {
             local_peer_id,
             keypair,
+            config,
             discovered_peers: HashSet::new(),
             room_topic: None,
             room_code: None,
             room_peers: HashSet::new(),
             connected_relays: HashSet::new(),
             listening_addresses: Vec::new(),
+            connected_bootstrap_peers: HashSet::new(),
+            expected_bootstrap_peers,
+            dht_bootstrapped: false,
         })
+    }
+
+    /// Get the signaling server URL
+    pub fn signaling_url(&self) -> &str {
+        &self.config.signaling_url
     }
 
     /// Get our local peer ID
@@ -239,6 +334,14 @@ impl NetworkManager {
     ///
     /// Transport chain: TCP (for relay) -> QUIC (for direct) -> DNS -> Relay Client
     fn create_swarm(&self) -> Result<Swarm<CiderBehaviour>, NetworkError> {
+        // Get bootstrap nodes from config (need to own them for the closure)
+        let bootstrap_nodes: Vec<String> = self
+            .config
+            .get_bootstrap_nodes()
+            .iter()
+            .map(|s| s.to_string())
+            .collect();
+
         let swarm = libp2p::SwarmBuilder::with_existing_identity(self.keypair.clone())
             .with_tokio()
             // TCP first - needed for relay protocol (uses noise+yamux)
@@ -257,6 +360,13 @@ impl NetworkManager {
             .with_relay_client(noise::Config::new, yamux::Config::default)
             .map_err(|e| NetworkError::Transport(e.to_string()))?
             .with_behaviour(|keypair, relay_client| {
+                // Ping for keep-alive (every 15 seconds)
+                let ping = ping::Behaviour::new(
+                    ping::Config::new()
+                        .with_interval(Duration::from_secs(15))
+                        .with_timeout(Duration::from_secs(20)),
+                );
+
                 // mDNS for local discovery
                 let mdns = mdns::tokio::Behaviour::new(
                     mdns::Config::default(),
@@ -306,7 +416,7 @@ impl NetworkManager {
                 // kademlia.set_mode(None) is the default and enables auto-mode
 
                 // Add bootstrap nodes to Kademlia routing table
-                for addr_str in BOOTSTRAP_NODES {
+                for addr_str in &bootstrap_nodes {
                     if let Ok(addr) = addr_str.parse::<Multiaddr>() {
                         // Extract peer ID from the address
                         if let Some(libp2p::multiaddr::Protocol::P2p(peer_id)) = addr.iter().last() {
@@ -316,6 +426,7 @@ impl NetworkManager {
                 }
 
                 Ok(CiderBehaviour {
+                    ping,
                     relay_client,
                     dcutr,
                     mdns,
@@ -325,7 +436,8 @@ impl NetworkManager {
                 })
             })
             .map_err(|e| NetworkError::Transport(e.to_string()))?
-            .with_swarm_config(|c| c.with_idle_connection_timeout(Duration::from_secs(60)))
+            // Longer timeout to keep relay connections alive while waiting for peers
+            .with_swarm_config(|c| c.with_idle_connection_timeout(Duration::from_secs(300)))
             .build();
 
         Ok(swarm)
@@ -333,7 +445,7 @@ impl NetworkManager {
 
     /// Connect to bootstrap relay nodes for internet connectivity
     fn connect_to_bootstrap_nodes(&self, swarm: &mut Swarm<CiderBehaviour>) {
-        for addr_str in BOOTSTRAP_NODES {
+        for addr_str in self.config.get_bootstrap_nodes() {
             if let Ok(addr) = addr_str.parse::<Multiaddr>() {
                 info!("Connecting to bootstrap node: {}", addr);
                 if let Err(e) = swarm.dial(addr.clone()) {
@@ -341,6 +453,16 @@ impl NetworkManager {
                 }
             }
         }
+    }
+
+    /// Send bootstrap status event
+    fn send_bootstrap_status(&self, event_tx: &mpsc::UnboundedSender<NetworkEvent>) {
+        let _ = event_tx.send(NetworkEvent::BootstrapStatus {
+            connected_bootstrap_nodes: self.connected_bootstrap_peers.len(),
+            total_bootstrap_nodes: self.expected_bootstrap_peers.len(),
+            relay_connections: self.connected_relays.len(),
+            dht_ready: self.dht_bootstrapped,
+        });
     }
 
     /// Run the network event loop
@@ -391,20 +513,38 @@ impl NetworkManager {
                             if let Err(e) = self.create_room(&mut swarm, &room_code) {
                                 let _ = event_tx.send(NetworkEvent::Error(e.to_string()));
                             } else {
-                                // Send listening addresses for signaling
-                                let _ = event_tx.send(NetworkEvent::ListeningAddresses {
-                                    addresses: self.listening_addresses.clone(),
-                                });
+                                // Send relay addresses for signaling (local addresses filtered out)
+                                // Note: Relay addresses may not be available yet - they'll be sent
+                                // via NewListenAddr event when the relay reservation is accepted
+                                let relay_addresses: Vec<String> = self.listening_addresses
+                                    .iter()
+                                    .filter(|a| a.contains("p2p-circuit"))
+                                    .cloned()
+                                    .collect();
+                                info!("Room created. Relay addresses available: {}", relay_addresses.len());
+                                if !relay_addresses.is_empty() {
+                                    let _ = event_tx.send(NetworkEvent::ListeningAddresses {
+                                        addresses: relay_addresses,
+                                    });
+                                }
                             }
                         }
                         NetworkCommand::JoinRoom { room_code } => {
                             if let Err(e) = self.join_room(&mut swarm, &room_code) {
                                 let _ = event_tx.send(NetworkEvent::Error(e.to_string()));
                             } else {
-                                // Send listening addresses for signaling
-                                let _ = event_tx.send(NetworkEvent::ListeningAddresses {
-                                    addresses: self.listening_addresses.clone(),
-                                });
+                                // Send relay addresses for signaling (local addresses filtered out)
+                                let relay_addresses: Vec<String> = self.listening_addresses
+                                    .iter()
+                                    .filter(|a| a.contains("p2p-circuit"))
+                                    .cloned()
+                                    .collect();
+                                info!("Joining room. Relay addresses available: {}", relay_addresses.len());
+                                if !relay_addresses.is_empty() {
+                                    let _ = event_tx.send(NetworkEvent::ListeningAddresses {
+                                        addresses: relay_addresses,
+                                    });
+                                }
                             }
                         }
                         NetworkCommand::LeaveRoom => {
@@ -448,18 +588,36 @@ impl NetworkManager {
     ) {
         match event {
             SwarmEvent::NewListenAddr { address, .. } => {
-                info!("Listening on {}", address);
                 // Track address with our peer ID appended for dial-ability
-                let full_addr = format!("{}/p2p/{}", address, self.local_peer_id);
+                // But don't double-append if it's already there (relay addresses include it)
+                let addr_str = address.to_string();
+                let peer_id_str = self.local_peer_id.to_string();
+                let full_addr = if addr_str.ends_with(&peer_id_str) {
+                    addr_str
+                } else {
+                    format!("{}/p2p/{}", address, self.local_peer_id)
+                };
+                let is_relay = full_addr.contains("p2p-circuit");
+
+                info!("Listening on {} (relay: {})", full_addr, is_relay);
                 self.listening_addresses.push(full_addr.clone());
 
                 // If we're in a room, notify about new address for signaling
                 // This is important for relay addresses which are discovered after room creation
                 if self.room_topic.is_some() {
-                    info!("New address discovered while in room: {}", full_addr);
-                    let _ = event_tx.send(NetworkEvent::ListeningAddresses {
-                        addresses: self.listening_addresses.clone(),
-                    });
+                    // Only send relay addresses for internet signaling (filter out local IPs)
+                    let relay_addresses: Vec<String> = self.listening_addresses
+                        .iter()
+                        .filter(|a| a.contains("p2p-circuit"))
+                        .cloned()
+                        .collect();
+
+                    if !relay_addresses.is_empty() {
+                        info!("Publishing {} relay addresses to signaling", relay_addresses.len());
+                        let _ = event_tx.send(NetworkEvent::ListeningAddresses {
+                            addresses: relay_addresses,
+                        });
+                    }
                 }
             }
 
@@ -488,10 +646,40 @@ impl NetworkManager {
 
             // Relay events
             SwarmEvent::Behaviour(CiderBehaviourEvent::RelayClient(
-                relay::client::Event::ReservationReqAccepted { relay_peer_id, .. },
+                relay::client::Event::ReservationReqAccepted {
+                    relay_peer_id,
+                    renewal,
+                    limit,
+                },
             )) => {
-                info!("Relay reservation accepted by {}", relay_peer_id);
+                info!(
+                    "Relay reservation {} by {} (limit: {:?})",
+                    if renewal { "renewed" } else { "accepted" },
+                    relay_peer_id,
+                    limit
+                );
                 self.connected_relays.insert(relay_peer_id);
+            }
+
+            SwarmEvent::Behaviour(CiderBehaviourEvent::RelayClient(
+                relay::client::Event::OutboundCircuitEstablished {
+                    relay_peer_id,
+                    limit,
+                },
+            )) => {
+                info!(
+                    "Outbound circuit established through relay {} (limit: {:?})",
+                    relay_peer_id, limit
+                );
+            }
+
+            SwarmEvent::Behaviour(CiderBehaviourEvent::RelayClient(
+                relay::client::Event::InboundCircuitEstablished { src_peer_id, limit },
+            )) => {
+                info!(
+                    "Inbound circuit established from {} (limit: {:?})",
+                    src_peer_id, limit
+                );
             }
 
             // DCUtR events (hole punching)
@@ -557,21 +745,57 @@ impl NetworkManager {
                 info,
                 ..
             })) => {
-                debug!(
-                    "Identified peer {} running {}",
-                    peer_id, info.protocol_version
+                info!(
+                    "Identified peer {} running {} with {} protocols",
+                    peer_id, info.protocol_version, info.protocols.len()
                 );
 
-                // If this is a relay server, listen through it for incoming connections
-                for addr in info.listen_addrs {
-                    // Check if this peer supports relay
-                    if info.protocols.iter().any(|p| p.as_ref().contains("relay")) {
+                // Log protocols for debugging
+                for proto in &info.protocols {
+                    debug!("  Protocol: {}", proto.as_ref());
+                }
+
+                // Check if this peer supports relay (hop = server side)
+                let supports_relay = info.protocols.iter().any(|p| {
+                    let proto = p.as_ref();
+                    proto.contains("circuit") && proto.contains("relay")
+                });
+
+                if supports_relay {
+                    info!(
+                        "Peer {} supports relay protocol, requesting reservation via {} addresses",
+                        peer_id,
+                        info.listen_addrs.len()
+                    );
+
+                    // Request relay reservation through each non-localhost address
+                    // The server should advertise its public IP via add_external_address()
+                    for addr in &info.listen_addrs {
+                        let addr_str = addr.to_string();
+
+                        // Skip localhost - can't be used for relay
+                        if addr_str.contains("127.0.0.1") || addr_str.contains("/ip6/::1/") {
+                            continue;
+                        }
+
+                        // Build relay address: /ip4/.../tcp/.../p2p/RELAY_ID/p2p-circuit
                         let relay_addr = addr
                             .clone()
+                            .with(libp2p::multiaddr::Protocol::P2p(peer_id))
                             .with(libp2p::multiaddr::Protocol::P2pCircuit);
-                        info!("Listening through relay: {}", relay_addr);
-                        let _ = swarm.listen_on(relay_addr);
+
+                        info!("Requesting relay listen on: {}", relay_addr);
+                        match swarm.listen_on(relay_addr.clone()) {
+                            Ok(id) => info!("Relay listen request accepted, listener id: {:?}", id),
+                            Err(e) => warn!("Failed to listen on relay {}: {}", relay_addr, e),
+                        }
                     }
+                } else {
+                    debug!(
+                        "Peer {} does not support relay (protocols: {:?})",
+                        peer_id,
+                        info.protocols.iter().map(|p| p.as_ref()).collect::<Vec<_>>()
+                    );
                 }
             }
 
@@ -579,12 +803,25 @@ impl NetworkManager {
                 info!("Connection established with {} via {:?}", peer_id, endpoint);
                 // Add to gossipsub for mesh
                 swarm.behaviour_mut().gossipsub.add_explicit_peer(&peer_id);
+
+                // Track bootstrap node connections
+                if self.expected_bootstrap_peers.contains(&peer_id) {
+                    info!("Connected to bootstrap node: {}", peer_id);
+                    self.connected_bootstrap_peers.insert(peer_id);
+                    self.send_bootstrap_status(event_tx);
+                }
             }
 
             SwarmEvent::ConnectionClosed { peer_id, .. } => {
                 debug!("Connection closed with {}", peer_id);
                 self.room_peers.remove(&peer_id);
                 self.connected_relays.remove(&peer_id);
+
+                // Track bootstrap node disconnections
+                if self.connected_bootstrap_peers.remove(&peer_id) {
+                    warn!("Disconnected from bootstrap node: {}", peer_id);
+                    self.send_bootstrap_status(event_tx);
+                }
             }
 
             SwarmEvent::OutgoingConnectionError { peer_id, error, .. } => {
@@ -592,6 +829,28 @@ impl NetworkManager {
                     warn!("Failed to connect to {}: {}", peer, error);
                 } else {
                     warn!("Outgoing connection error: {}", error);
+                }
+            }
+
+            SwarmEvent::ListenerError { listener_id, error } => {
+                warn!("Listener {} error: {}", listener_id, error);
+                // This can happen when relay reservation fails
+                // The swarm will automatically retry with other listeners
+            }
+
+            SwarmEvent::ListenerClosed {
+                listener_id,
+                reason,
+                addresses,
+            } => {
+                let addr_str = addresses
+                    .iter()
+                    .map(|a| a.to_string())
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                match reason {
+                    Ok(()) => debug!("Listener {} closed normally ({})", listener_id, addr_str),
+                    Err(e) => warn!("Listener {} closed with error: {} ({})", listener_id, e, addr_str),
                 }
             }
 
@@ -611,10 +870,13 @@ impl NetworkManager {
                                 info!("Kademlia bootstrap progress: peer={}, remaining={}", peer, num_remaining);
                                 if num_remaining == 0 {
                                     info!("Kademlia bootstrap complete!");
+                                    self.dht_bootstrapped = true;
+                                    self.send_bootstrap_status(event_tx);
                                 }
                             }
                             kad::QueryResult::Bootstrap(Err(e)) => {
                                 warn!("Kademlia bootstrap error: {:?}", e);
+                                // Don't set dht_bootstrapped on failure - will retry
                             }
                             kad::QueryResult::GetProviders(Ok(kad::GetProvidersOk::FoundProviders { providers, .. })) => {
                                 info!("DHT found {} providers for room", providers.len());

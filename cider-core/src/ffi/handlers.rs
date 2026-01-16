@@ -123,6 +123,19 @@ pub async fn handle_network_event(
 
         // Handled in session.rs before reaching here
         NetworkEvent::ListeningAddresses { .. } => {}
+
+        // Bootstrap status updates - useful for debugging connectivity
+        NetworkEvent::BootstrapStatus {
+            connected_bootstrap_nodes,
+            total_bootstrap_nodes,
+            relay_connections,
+            dht_ready,
+        } => {
+            info!(
+                "Bootstrap status: {}/{} nodes, {} relays, DHT ready: {}",
+                connected_bootstrap_nodes, total_bootstrap_nodes, relay_connections, dht_ready
+            );
+        }
     }
 }
 

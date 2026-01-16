@@ -28,20 +28,15 @@ impl RoomCode {
         RoomCode(code)
     }
 
-    /// Generate a random room code (for testing)
+    /// Generate a random room code using cryptographically secure RNG
     pub fn random() -> Self {
-        use std::time::{SystemTime, UNIX_EPOCH};
-        let seed = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_nanos() as u128;
+        use rand::Rng;
+        let mut rng = rand::thread_rng();
 
         let mut code = String::with_capacity(CODE_LENGTH);
-        let mut n = seed;
         for _ in 0..CODE_LENGTH {
-            let idx = (n % ALPHABET.len() as u128) as usize;
+            let idx = rng.gen_range(0..ALPHABET.len());
             code.push(ALPHABET[idx] as char);
-            n /= ALPHABET.len() as u128;
         }
         RoomCode(code)
     }

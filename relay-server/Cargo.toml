@@ -1,0 +1,33 @@
+[package]
+name = "cider-relay"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+libp2p = { version = "0.56", features = [
+    "tokio",
+    "tcp",
+    "noise",
+    "yamux",
+    "identify",
+    "relay",
+    "kad",
+    "quic",
+    "macros",
+    "ping",
+] }
+tokio = { version = "1", features = ["full"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+futures = "0.3"
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls"] }
+
+# TUI dashboard
+ratatui = "0.29"
+crossterm = "0.28"
+
+# Time handling
+chrono = "0.4"
+
+# Shared state
+parking_lot = "0.12"

@@ -1,0 +1,49 @@
+[Unit]
+Description=Cider Listen Together - Relay Server
+Documentation=https://github.com/ciderapp/cider-listen-together
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=cider-relay
+Group=cider-relay
+
+# Path to the binary (adjust as needed)
+ExecStart=/opt/cider-relay/cider-relay --no-dashboard
+
+# Environment variables for configuration
+Environment=TCP_PORT=4001
+Environment=QUIC_PORT=4001
+Environment=RUST_LOG=info
+
+# Working directory
+WorkingDirectory=/opt/cider-relay
+
+# Restart policy
+Restart=always
+RestartSec=5
+
+# Security hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+
+# Resource limits
+LimitNOFILE=65535
+LimitNPROC=4096
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=cider-relay
+
+[Install]
+WantedBy=multi-user.target

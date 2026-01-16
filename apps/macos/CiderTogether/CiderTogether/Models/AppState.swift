@@ -29,7 +29,8 @@ class AppState: ObservableObject {
 
     // MARK: - Private
 
-    private var session: Session
+    /// Session is thread-safe (Rust FFI handles synchronization), so we can access it from detached tasks
+    private nonisolated(unsafe) var session: Session
     private var pollingTask: Task<Void, Never>?
     private var consecutiveFailures: Int = 0
     private let maxConsecutiveFailures: Int = 5
@@ -61,6 +62,14 @@ class AppState: ObservableObject {
         if !apiToken.isEmpty {
             session.setCiderToken(token: apiToken)
         }
+
+        // Production relay server (TCP primary, QUIC fallback, both IPv4 and IPv6)
+        session.setBootstrapNodes(nodes: [
+            "/ip4/5.255.111.175/tcp/4001/p2p/12D3KooWRL4ypPGLrACdGbF1eHRHfZv5iht4a2zaQda12FiEm1ZX",
+            "/ip4/5.255.111.175/udp/4001/quic-v1/p2p/12D3KooWRL4ypPGLrACdGbF1eHRHfZv5iht4a2zaQda12FiEm1ZX",
+            "/ip6/2a04:52c0:116:3293::1/tcp/4001/p2p/12D3KooWRL4ypPGLrACdGbF1eHRHfZv5iht4a2zaQda12FiEm1ZX",
+            "/ip6/2a04:52c0:116:3293::1/udp/4001/quic-v1/p2p/12D3KooWRL4ypPGLrACdGbF1eHRHfZv5iht4a2zaQda12FiEm1ZX"
+        ])
     }
 
     /// Call this after the view has appeared to avoid state updates during view construction
@@ -392,7 +401,7 @@ class AppState: ObservableObject {
 
 // MARK: - Session Callback Implementation
 
-class SessionCallbackImpl: SessionCallback {
+final class SessionCallbackImpl: SessionCallback, @unchecked Sendable {
     private weak var appState: AppState?
 
     init(appState: AppState) {

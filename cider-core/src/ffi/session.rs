@@ -7,7 +7,7 @@ use tracing::{debug, info, warn};
 
 use crate::cider::{CiderClient, CiderError as CiderApiError};
 use crate::latency::{self, SharedLatencyTracker};
-use crate::network::{NetworkHandle, NetworkManager, RoomCode};
+use crate::network::{NetworkConfig, NetworkHandle, NetworkManager, RoomCode};
 use crate::seek_calibrator::{self, SharedSeekCalibrator};
 use crate::sync::{PlaybackInfo, Room, RoomState as InternalRoomState, SyncMessage};
 
@@ -36,7 +36,9 @@ pub struct Session {
     /// Seek offset calibrator for compensating Cider buffer latency
     seek_calibrator: SharedSeekCalibrator,
     /// Signaling client for internet peer discovery
-    signaling: Arc<crate::network::SignalingClient>,
+    signaling: Arc<RwLock<crate::network::SignalingClient>>,
+    /// Custom bootstrap/relay nodes (if empty, uses defaults)
+    bootstrap_nodes: Arc<RwLock<Vec<String>>>,
 }
 
 #[uniffi::export]
@@ -78,7 +80,8 @@ impl Session {
             latency_tracker: latency::new_shared_tracker(),
             listener_ping_cancel: Arc::new(RwLock::new(None)),
             seek_calibrator: seek_calibrator::new_shared_calibrator(),
-            signaling: Arc::new(crate::network::SignalingClient::new()),
+            signaling: Arc::new(RwLock::new(crate::network::SignalingClient::new())),
+            bootstrap_nodes: Arc::new(RwLock::new(Vec::new())),
         }
     }
 
@@ -96,6 +99,23 @@ impl Session {
     pub fn set_callback(&self, callback: Box<dyn SessionCallback>) {
         let mut cb = self.callback.write().unwrap();
         *cb = Some(Arc::from(callback));
+    }
+
+    /// Set the signaling server URL (e.g., "https://ntfy.sh" or your own server)
+    /// Must be called before creating/joining a room
+    pub fn set_signaling_url(&self, url: String) {
+        let mut signaling = self.signaling.write().unwrap();
+        *signaling = crate::network::SignalingClient::with_url(url);
+    }
+
+    /// Set custom bootstrap/relay nodes
+    /// Must be called before creating/joining a room
+    /// Format: "/ip4/127.0.0.1/tcp/4001/p2p/PEER_ID" or "/ip4/YOUR_IP/tcp/4001/p2p/PEER_ID"
+    /// If not set, uses default IPFS bootstrap nodes
+    pub fn set_bootstrap_nodes(&self, nodes: Vec<String>) {
+        info!("Setting custom bootstrap nodes: {:?}", nodes);
+        let mut bootstrap = self.bootstrap_nodes.write().unwrap();
+        *bootstrap = nodes;
     }
 
     /// Check if Cider is reachable
@@ -267,7 +287,7 @@ impl Session {
             .map_err(|e| CoreError::NetworkError(e.to_string()))?;
 
         // Poll signaling for host addresses (internet discovery)
-        let signaling_clone = Arc::clone(&self.signaling);
+        let signaling_clone = self.signaling.read().unwrap().clone();
         let handle_for_signaling = handle.clone();
         let room_for_signaling = Arc::clone(&self.room);
         let room_code_for_signaling = room_code_str.clone();
@@ -291,9 +311,13 @@ impl Session {
 
                 match signaling_clone.poll_room(&room_code_for_signaling).await {
                     Ok(messages) => {
+                        if messages.is_empty() {
+                            info!("Signaling: No messages found for room {}", room_code_for_signaling);
+                        }
                         for msg in messages {
                             // Skip our own messages
                             if msg.peer_id == local_peer_id {
+                                info!("Signaling: Skipping own message");
                                 continue;
                             }
 
@@ -654,8 +678,18 @@ impl Session {
             }
         }
 
-        // Start the network
-        let network_manager = NetworkManager::new()
+        // Start the network with custom config if bootstrap nodes are set
+        let bootstrap_nodes = self.bootstrap_nodes.read().unwrap().clone();
+        let config = if bootstrap_nodes.is_empty() {
+            NetworkConfig::default()
+        } else {
+            NetworkConfig {
+                bootstrap_nodes,
+                ..NetworkConfig::default()
+            }
+        };
+
+        let network_manager = NetworkManager::with_config(config)
             .map_err(|e| CoreError::NetworkError(e.to_string()))?;
 
         let (handle, mut event_rx) = self.runtime.block_on(async {
@@ -681,7 +715,7 @@ impl Session {
         let network_handle_clone = Arc::clone(&self.network_handle);
         let latency_tracker_clone = Arc::clone(&self.latency_tracker);
         let seek_calibrator_clone = Arc::clone(&self.seek_calibrator);
-        let signaling_clone = Arc::clone(&self.signaling);
+        let signaling_clone = self.signaling.read().unwrap().clone();
         let local_peer_id = peer_id.clone();
 
         self.runtime.spawn(async move {
@@ -702,15 +736,20 @@ impl Session {
 
                     if let Some(code) = room_code {
                         let addresses = addresses.clone();
-                        let signaling = Arc::clone(&signaling_clone);
+                        let signaling = signaling_clone.clone();
                         let peer_id = local_peer_id.clone();
 
                         info!("Publishing {} addresses to signaling for room {}", addresses.len(), code);
+                        for addr in &addresses {
+                            info!("  -> {}", addr);
+                        }
 
                         // Publish to signaling in a separate task
                         tokio::spawn(async move {
                             if let Err(e) = signaling.publish_room(&code, &peer_id, addresses).await {
                                 warn!("Failed to publish to signaling: {}", e);
+                            } else {
+                                info!("Successfully published to signaling");
                             }
                         });
                     }

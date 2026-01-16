@@ -588,6 +588,14 @@ public protocol SessionProtocol: AnyObject, Sendable {
     func leaveRoom() throws 
     
     /**
+     * Set custom bootstrap/relay nodes
+     * Must be called before creating/joining a room
+     * Format: "/ip4/127.0.0.1/tcp/4001/p2p/PEER_ID" or "/ip4/YOUR_IP/tcp/4001/p2p/PEER_ID"
+     * If not set, uses default IPFS bootstrap nodes
+     */
+    func setBootstrapNodes(nodes: [String]) 
+    
+    /**
      * Set the event callback
      */
     func setCallback(callback: SessionCallback) 
@@ -596,6 +604,12 @@ public protocol SessionProtocol: AnyObject, Sendable {
      * Set the Cider API token
      */
     func setCiderToken(token: String?) 
+    
+    /**
+     * Set the signaling server URL (e.g., "https://ntfy.sh" or your own server)
+     * Must be called before creating/joining a room
+     */
+    func setSignalingUrl(url: String) 
     
     /**
      * Sync next command (host only)
@@ -825,6 +839,20 @@ open func leaveRoom()throws   {try rustCallWithError(FfiConverterTypeCoreError_l
 }
     
     /**
+     * Set custom bootstrap/relay nodes
+     * Must be called before creating/joining a room
+     * Format: "/ip4/127.0.0.1/tcp/4001/p2p/PEER_ID" or "/ip4/YOUR_IP/tcp/4001/p2p/PEER_ID"
+     * If not set, uses default IPFS bootstrap nodes
+     */
+open func setBootstrapNodes(nodes: [String])  {try! rustCall() {
+    uniffi_cider_core_fn_method_session_set_bootstrap_nodes(
+            self.uniffiCloneHandle(),
+        FfiConverterSequenceString.lower(nodes),$0
+    )
+}
+}
+    
+    /**
      * Set the event callback
      */
 open func setCallback(callback: SessionCallback)  {try! rustCall() {
@@ -842,6 +870,18 @@ open func setCiderToken(token: String?)  {try! rustCall() {
     uniffi_cider_core_fn_method_session_set_cider_token(
             self.uniffiCloneHandle(),
         FfiConverterOptionString.lower(token),$0
+    )
+}
+}
+    
+    /**
+     * Set the signaling server URL (e.g., "https://ntfy.sh" or your own server)
+     * Must be called before creating/joining a room
+     */
+open func setSignalingUrl(url: String)  {try! rustCall() {
+    uniffi_cider_core_fn_method_session_set_signaling_url(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(url),$0
     )
 }
 }
@@ -2054,6 +2094,31 @@ fileprivate struct FfiConverterOptionTypeTrackInfo: FfiConverterRustBuffer {
 #if swift(>=5.8)
 @_documentation(visibility: private)
 #endif
+fileprivate struct FfiConverterSequenceString: FfiConverterRustBuffer {
+    typealias SwiftType = [String]
+
+    public static func write(_ value: [String], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterString.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [String] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [String]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterString.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
 fileprivate struct FfiConverterSequenceTypeCalibrationSample: FfiConverterRustBuffer {
     typealias SwiftType = [CalibrationSample]
 
@@ -2152,10 +2217,16 @@ private let initializationResult: InitializationResult = {
     if (uniffi_cider_core_checksum_method_session_leave_room() != 60146) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_cider_core_checksum_method_session_set_bootstrap_nodes() != 19665) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_cider_core_checksum_method_session_set_callback() != 55902) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_cider_core_checksum_method_session_set_cider_token() != 49915) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_cider_core_checksum_method_session_set_signaling_url() != 24584) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_cider_core_checksum_method_session_sync_next() != 18357) {

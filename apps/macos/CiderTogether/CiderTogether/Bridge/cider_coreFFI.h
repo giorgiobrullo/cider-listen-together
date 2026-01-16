@@ -407,6 +407,11 @@ void uniffi_cider_core_fn_method_session_join_room(uint64_t ptr, RustBuffer room
 void uniffi_cider_core_fn_method_session_leave_room(uint64_t ptr, RustCallStatus *_Nonnull out_status
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_CIDER_CORE_FN_METHOD_SESSION_SET_BOOTSTRAP_NODES
+#define UNIFFI_FFIDEF_UNIFFI_CIDER_CORE_FN_METHOD_SESSION_SET_BOOTSTRAP_NODES
+void uniffi_cider_core_fn_method_session_set_bootstrap_nodes(uint64_t ptr, RustBuffer nodes, RustCallStatus *_Nonnull out_status
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_CIDER_CORE_FN_METHOD_SESSION_SET_CALLBACK
 #define UNIFFI_FFIDEF_UNIFFI_CIDER_CORE_FN_METHOD_SESSION_SET_CALLBACK
 void uniffi_cider_core_fn_method_session_set_callback(uint64_t ptr, uint64_t callback, RustCallStatus *_Nonnull out_status
@@ -415,6 +420,11 @@ void uniffi_cider_core_fn_method_session_set_callback(uint64_t ptr, uint64_t cal
 #ifndef UNIFFI_FFIDEF_UNIFFI_CIDER_CORE_FN_METHOD_SESSION_SET_CIDER_TOKEN
 #define UNIFFI_FFIDEF_UNIFFI_CIDER_CORE_FN_METHOD_SESSION_SET_CIDER_TOKEN
 void uniffi_cider_core_fn_method_session_set_cider_token(uint64_t ptr, RustBuffer token, RustCallStatus *_Nonnull out_status
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_CIDER_CORE_FN_METHOD_SESSION_SET_SIGNALING_URL
+#define UNIFFI_FFIDEF_UNIFFI_CIDER_CORE_FN_METHOD_SESSION_SET_SIGNALING_URL
+void uniffi_cider_core_fn_method_session_set_signaling_url(uint64_t ptr, RustBuffer url, RustCallStatus *_Nonnull out_status
 );
 #endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_CIDER_CORE_FN_METHOD_SESSION_SYNC_NEXT
@@ -784,6 +794,12 @@ uint16_t uniffi_cider_core_checksum_method_session_leave_room(void
     
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_CIDER_CORE_CHECKSUM_METHOD_SESSION_SET_BOOTSTRAP_NODES
+#define UNIFFI_FFIDEF_UNIFFI_CIDER_CORE_CHECKSUM_METHOD_SESSION_SET_BOOTSTRAP_NODES
+uint16_t uniffi_cider_core_checksum_method_session_set_bootstrap_nodes(void
+    
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_CIDER_CORE_CHECKSUM_METHOD_SESSION_SET_CALLBACK
 #define UNIFFI_FFIDEF_UNIFFI_CIDER_CORE_CHECKSUM_METHOD_SESSION_SET_CALLBACK
 uint16_t uniffi_cider_core_checksum_method_session_set_callback(void
@@ -793,6 +809,12 @@ uint16_t uniffi_cider_core_checksum_method_session_set_callback(void
 #ifndef UNIFFI_FFIDEF_UNIFFI_CIDER_CORE_CHECKSUM_METHOD_SESSION_SET_CIDER_TOKEN
 #define UNIFFI_FFIDEF_UNIFFI_CIDER_CORE_CHECKSUM_METHOD_SESSION_SET_CIDER_TOKEN
 uint16_t uniffi_cider_core_checksum_method_session_set_cider_token(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_CIDER_CORE_CHECKSUM_METHOD_SESSION_SET_SIGNALING_URL
+#define UNIFFI_FFIDEF_UNIFFI_CIDER_CORE_CHECKSUM_METHOD_SESSION_SET_SIGNALING_URL
+uint16_t uniffi_cider_core_checksum_method_session_set_signaling_url(void
     
 );
 #endif
