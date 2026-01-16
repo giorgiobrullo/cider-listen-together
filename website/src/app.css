@@ -1,0 +1,133 @@
+@import 'tailwindcss';
+
+@theme {
+	--color-accent: #f97316;
+	--color-accent-light: #fb923c;
+	--color-bg-dark: #0a0a0a;
+	--color-bg-card: #1a1a1a;
+	--color-bg-card-hover: #252525;
+	--font-family-display: 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+		sans-serif;
+	--font-family-mono: 'SF Mono', ui-monospace, SFMono-Regular, 'Cascadia Code', Consolas,
+		monospace;
+}
+
+html {
+	scroll-behavior: smooth;
+}
+
+body {
+	font-family: var(--font-family-display);
+	background-color: var(--color-bg-dark);
+	color: white;
+	overflow-x: hidden;
+}
+
+/* Glass morphism effect */
+.glass {
+	background: rgba(26, 26, 26, 0.7);
+	backdrop-filter: blur(20px);
+	-webkit-backdrop-filter: blur(20px);
+	border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Gradient text */
+.gradient-text {
+	background: linear-gradient(135deg, var(--color-accent) 0%, var(--color-accent-light) 100%);
+	-webkit-background-clip: text;
+	-webkit-text-fill-color: transparent;
+	background-clip: text;
+}
+
+/* Glow effect */
+.glow {
+	box-shadow: 0 0 60px rgba(249, 115, 22, 0.3);
+}
+
+/* Floating animation */
+@keyframes float {
+	0%,
+	100% {
+		transform: translateY(0px);
+	}
+	50% {
+		transform: translateY(-10px);
+	}
+}
+
+.animate-float {
+	animation: float 3s ease-in-out infinite;
+}
+
+/* Slow pulse for background glow */
+@keyframes pulse-slow {
+	0%,
+	100% {
+		opacity: 1;
+		transform: scale(1);
+	}
+	50% {
+		opacity: 0.7;
+		transform: scale(1.05);
+	}
+}
+
+@keyframes pulse-slower {
+	0%,
+	100% {
+		opacity: 1;
+		transform: scale(1) translateX(0);
+	}
+	50% {
+		opacity: 0.6;
+		transform: scale(1.1) translateX(20px);
+	}
+}
+
+.animate-pulse-slow {
+	animation: pulse-slow 8s ease-in-out infinite;
+}
+
+.animate-pulse-slower {
+	animation: pulse-slower 12s ease-in-out infinite;
+}
+
+/* Fade in animation */
+@keyframes fade-in-up {
+	from {
+		opacity: 0;
+		transform: translateY(20px);
+	}
+	to {
+		opacity: 1;
+		transform: translateY(0);
+	}
+}
+
+.animate-fade-in-up {
+	animation: fade-in-up 0.6s ease-out forwards;
+}
+
+.animation-delay-100 {
+	animation-delay: 0.1s;
+}
+.animation-delay-200 {
+	animation-delay: 0.2s;
+}
+.animation-delay-300 {
+	animation-delay: 0.3s;
+}
+.animation-delay-400 {
+	animation-delay: 0.4s;
+}
+
+/* OverlayScrollbars custom theme */
+.os-scrollbar {
+	--os-handle-bg: rgba(255, 255, 255, 0.2);
+	--os-handle-bg-hover: rgba(249, 115, 22, 0.6);
+	--os-handle-bg-active: rgba(249, 115, 22, 0.8);
+}
+
+.os-scrollbar-handle {
+	border-radius: 10px;
+}
