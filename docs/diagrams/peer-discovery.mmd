@@ -1,0 +1,11 @@
+flowchart LR
+    subgraph Local["Layer 1: LAN"]
+        mdns_d["mDNS<br/>╌╌╌╌╌╌╌╌╌╌╌╌╌╌<br/>224.0.0.251:5353<br/>Instant discovery"]
+    end
+
+    subgraph Signal["Layer 2: Signaling"]
+        ntfy["ntfy.sh HTTP<br/>╌╌╌╌╌╌╌╌╌╌╌╌╌╌<br/>POST/GET polling<br/>Relay addresses"]
+    end
+
+    mdns_d -->|"~0ms"| connect["Dial Peer"]
+    ntfy -->|"~500ms"| connect

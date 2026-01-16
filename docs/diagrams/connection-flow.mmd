@@ -1,0 +1,30 @@
+sequenceDiagram
+    participant H as Host
+    participant R as Relay Server
+    participant S as ntfy.sh
+    participant L as Listener
+
+    Note over H: create_room("ABCD-1234")
+
+    H->>R: Connect + Reserve relay slot
+    R-->>H: ReservationReqAccepted
+    H->>S: POST /cider-together-abcd1234<br/>{"peer_id", "relay_addresses"}
+
+    Note over L: join_room("ABCD-1234")
+
+    L->>R: Connect + Reserve relay slot
+    R-->>L: ReservationReqAccepted
+    L->>S: GET /cider-together-abcd1234/json
+    S-->>L: {"peer_id", "relay_addresses"}
+
+    alt Same LAN (mDNS found peer)
+        L->>H: TCP/QUIC direct
+    else Behind NAT (most common)
+        L->>R: Connect via circuit<br/>/p2p-circuit/p2p/{host_id}
+        R->>H: Relay connection
+        Note over L,H: DCUtR hole punch attempt
+        L->>H: Direct QUIC connection<br/>(bypasses relay)
+    end
+
+    L->>H: SyncMessage::JoinRequest<br/>{"display_name"}
+    H->>L: SyncMessage::RoomState<br/>{room_code, participants,<br/>current_track, playback}

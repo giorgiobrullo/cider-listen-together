@@ -1,0 +1,21 @@
+flowchart LR
+    subgraph Host["Host (authority)"]
+        cider_h["Cider API<br/>:10767"]
+        detect["Detect state change"]
+        broadcast["Gossipsub publish<br/>Play/Pause/Seek/TrackChange"]
+    end
+
+    subgraph Network["Network"]
+        topic((("cider-room-XXXX")))
+    end
+
+    subgraph Listener["Listener"]
+        receive["Receive message"]
+        seek["Cider seek to:<br/>position_ms + offset_ms"]
+        heartbeat["Heartbeat received"]
+        measure["Measure drift:<br/>drift = our_pos - host_pos"]
+        calibrate["EMA update:<br/>offset = α×ideal + (1-α)×offset<br/>(α=0.15, bounds: 100-2000ms)"]
+    end
+
+    cider_h --> detect --> broadcast --> topic --> receive --> seek
+    heartbeat --> measure --> calibrate -.->|"learned offset"| seek

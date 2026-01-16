@@ -1,0 +1,35 @@
+flowchart LR
+    subgraph src["Source"]
+        rust["Rust + #[uniffi::export]"]
+    end
+
+    subgraph build["cargo build --release"]
+        compile["rustc → LLVM"]
+    end
+
+    subgraph artifacts["Artifacts"]
+        dylib["libcider_core.dylib<br/>(macOS arm64)"]
+        dll["cider_core.dll<br/>(Windows x64)"]
+    end
+
+    subgraph bindgen["uniffi-bindgen generate"]
+        swift["cider_core.swift"]
+        header["cider_coreFFI.h"]
+        csharp["CiderCore.cs"]
+    end
+
+    subgraph sign["Code Signing"]
+        codesign["codesign --sign 'Apple Development'"]
+    end
+
+    subgraph apps["Native Apps"]
+        xcode["Xcode → .app bundle"]
+        vs["Visual Studio → .msix"]
+    end
+
+    rust --> compile --> dylib & dll
+    dylib --> bindgen --> swift & header
+    dll --> bindgen --> csharp
+    dylib --> codesign --> xcode
+    swift & header --> xcode
+    dll & csharp --> vs

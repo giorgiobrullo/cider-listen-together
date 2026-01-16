@@ -1,0 +1,31 @@
+flowchart TB
+    subgraph Swift["SwiftUI App"]
+        views["Views<br/>╌╌╌╌╌╌╌╌<br/>HomeView<br/>RoomView<br/>DebugView"]
+        appstate["AppState<br/>╌╌╌╌╌╌╌╌<br/>@MainActor<br/>@Published vars"]
+    end
+
+    subgraph FFI["UniFFI Boundary"]
+        session["Session<br/>╌╌╌╌╌╌╌╌<br/>#[uniffi::Object]<br/>Arc&lt;Mutex&lt;...&gt;&gt;"]
+        callback["SessionCallback<br/>╌╌╌╌╌╌╌╌<br/>#[uniffi::export(<br/>callback_interface)]"]
+    end
+
+    subgraph Rust["Rust Core (tokio runtime)"]
+        handler["Event Handler<br/>╌╌╌╌╌╌╌╌<br/>mpsc channels<br/>async/await"]
+        cider["Cider Client<br/>╌╌╌╌╌╌╌╌<br/>reqwest HTTP<br/>localhost:10767"]
+        netmgr["NetworkManager<br/>╌╌╌╌╌╌╌╌<br/>Swarm event loop<br/>Room state machine"]
+        signal["SignalingClient<br/>╌╌╌╌╌╌╌╌<br/>ntfy.sh polling<br/>Address exchange"]
+    end
+
+    subgraph Swarm["libp2p Swarm"]
+        behaviour["CiderBehaviour<br/>╌╌╌╌╌╌╌╌<br/>6 composed protocols"]
+    end
+
+    views <--> appstate
+    appstate <--> session
+    callback --> appstate
+
+    session --> handler
+    handler --> cider
+    handler <--> netmgr
+    netmgr --> signal
+    netmgr <--> behaviour

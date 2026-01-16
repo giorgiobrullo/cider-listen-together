@@ -1,0 +1,28 @@
+flowchart TB
+    subgraph Server["Relay Server Binary"]
+        subgraph Behaviour["RelayServerBehaviour"]
+            relay_s["relay::Behaviour<br/>╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌<br/>Accept reservations<br/>Create circuits"]
+            identify_s["identify::Behaviour<br/>╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌<br/>Verify /cider-*<br/>Reject non-Cider"]
+            ping_s["ping::Behaviour<br/>╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌<br/>Keep-alive 15s"]
+        end
+        metrics["Metrics<br/>╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌<br/>active_reservations<br/>active_circuits<br/>connected_peers"]
+        dashboard["TUI Dashboard<br/>╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌<br/>ratatui terminal UI"]
+    end
+
+    subgraph Listen["Listen Addresses"]
+        tcp_l["/ip4/0.0.0.0/tcp/4001"]
+        quic_l["/ip4/0.0.0.0/udp/4001/quic-v1"]
+        tcp6["/ip6/::/tcp/4001"]
+        quic6["/ip6/::/udp/4001/quic-v1"]
+    end
+
+    subgraph Clients["Clients"]
+        c1["Client A<br/>/p2p-circuit reservation"]
+        c2["Client B<br/>circuit to A"]
+    end
+
+    tcp_l & quic_l & tcp6 & quic6 --> Behaviour
+    c1 <-->|"reservation"| relay_s
+    c2 <-->|"circuit"| relay_s
+    relay_s <-->|"relay traffic"| c1
+    Behaviour --> metrics --> dashboard
