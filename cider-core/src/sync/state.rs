@@ -145,6 +145,11 @@ impl Room {
         matches!(self, Room::Active(_))
     }
 
+    /// Check if we're in any room-related state (creating, joining, or active)
+    pub fn is_busy(&self) -> bool {
+        !matches!(self, Room::None)
+    }
+
     /// Get the active room state if we're in one
     pub fn state(&self) -> Option<&RoomState> {
         match self {

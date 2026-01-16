@@ -211,7 +211,7 @@ impl Session {
     pub fn create_room(&self, display_name: String) -> Result<String, CoreError> {
         {
             let room = self.room.read().unwrap();
-            if room.is_active() {
+            if room.is_busy() {
                 return Err(CoreError::AlreadyInRoom);
             }
         }
@@ -259,7 +259,7 @@ impl Session {
     pub fn join_room(&self, room_code: String, display_name: String) -> Result<(), CoreError> {
         {
             let room = self.room.read().unwrap();
-            if room.is_active() {
+            if room.is_busy() {
                 return Err(CoreError::AlreadyInRoom);
             }
         }
@@ -387,18 +387,27 @@ impl Session {
             tokio::time::sleep(Duration::from_secs(30)).await;
 
             // Check if we're still in joining state for this room
-            let room = room_clone.read().unwrap();
-            if let Room::Joining { room_code: rc, .. } = &*room {
-                if rc == &room_code_for_timeout {
-                    // No host found - notify the UI
-                    warn!("No host found for room {} after timeout", room_code_for_timeout);
+            let should_clear = {
+                let room = room_clone.read().unwrap();
+                if let Room::Joining { room_code: rc, .. } = &*room {
+                    rc == &room_code_for_timeout
+                } else {
+                    false
+                }
+            };
 
-                    if let Some(cb) = callback_clone.read().unwrap().as_ref() {
-                        cb.on_error(format!(
-                            "Room {} not found",
-                            room_code_for_timeout
-                        ));
-                    }
+            if should_clear {
+                // No host found - notify the UI and clear state
+                warn!("No host found for room {} after timeout", room_code_for_timeout);
+
+                // Clear room state first so user can try again
+                *room_clone.write().unwrap() = Room::None;
+
+                if let Some(cb) = callback_clone.read().unwrap().as_ref() {
+                    cb.on_error(format!(
+                        "Room {} not found",
+                        room_code_for_timeout
+                    ));
                 }
             }
         });
