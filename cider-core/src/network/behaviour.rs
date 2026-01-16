@@ -451,7 +451,16 @@ impl NetworkManager {
                 info!("Listening on {}", address);
                 // Track address with our peer ID appended for dial-ability
                 let full_addr = format!("{}/p2p/{}", address, self.local_peer_id);
-                self.listening_addresses.push(full_addr);
+                self.listening_addresses.push(full_addr.clone());
+
+                // If we're in a room, notify about new address for signaling
+                // This is important for relay addresses which are discovered after room creation
+                if self.room_topic.is_some() {
+                    info!("New address discovered while in room: {}", full_addr);
+                    let _ = event_tx.send(NetworkEvent::ListeningAddresses {
+                        addresses: self.listening_addresses.clone(),
+                    });
+                }
             }
 
             // mDNS discovered peers (local network)
