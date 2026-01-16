@@ -88,10 +88,10 @@ impl Session {
     /// Set the Cider API token
     pub fn set_cider_token(&self, token: Option<String>) {
         let mut cider = self.cider.write().unwrap();
-        *cider = if let Some(t) = token {
-            CiderClient::new().with_token(t)
-        } else {
-            CiderClient::new()
+        // Trim whitespace from token (common copy/paste issue)
+        *cider = match token.map(|t| t.trim().to_string()).filter(|t| !t.is_empty()) {
+            Some(t) => CiderClient::new().with_token(t),
+            None => CiderClient::new(),
         };
     }
 
