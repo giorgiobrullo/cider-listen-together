@@ -121,13 +121,30 @@ body {
 	animation-delay: 0.4s;
 }
 
-/* OverlayScrollbars custom theme */
-.os-scrollbar {
-	--os-handle-bg: rgba(255, 255, 255, 0.2);
-	--os-handle-bg-hover: rgba(249, 115, 22, 0.6);
-	--os-handle-bg-active: rgba(249, 115, 22, 0.8);
+/* Custom scrollbar */
+::-webkit-scrollbar {
+	width: 10px;
 }
 
-.os-scrollbar-handle {
+::-webkit-scrollbar-track {
+	background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+	background: rgba(255, 255, 255, 0.15);
 	border-radius: 10px;
+	border: 2px solid transparent;
+	background-clip: padding-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+	background: rgba(249, 115, 22, 0.5);
+	border: 2px solid transparent;
+	background-clip: padding-box;
+}
+
+/* Firefox */
+* {
+	scrollbar-width: thin;
+	scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
 }

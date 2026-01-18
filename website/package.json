@@ -24,8 +24,7 @@
 	},
 	"dependencies": {
 		"@tabler/icons-svelte": "^3.36.1",
-		"overlayscrollbars": "^2.13.0",
-		"overlayscrollbars-svelte": "^0.5.5",
+		"lenis": "^1.3.17",
 		"svelte-meta-tags": "^4.5.0"
 	}
 }

@@ -1,9 +1,24 @@
 <script lang="ts">
 	import '../app.css';
-	import 'overlayscrollbars/overlayscrollbars.css';
-	import { OverlayScrollbarsComponent } from 'overlayscrollbars-svelte';
+	import Lenis from 'lenis';
+	import { onMount } from 'svelte';
 
 	let { children } = $props();
+
+	onMount(() => {
+		const lenis = new Lenis({
+			lerp: 0.1,
+			smoothWheel: true
+		});
+
+		function raf(time: number) {
+			lenis.raf(time);
+			requestAnimationFrame(raf);
+		}
+		requestAnimationFrame(raf);
+
+		return () => lenis.destroy();
+	});
 </script>
 
 <svelte:head>
@@ -11,16 +26,4 @@
 	<link rel="apple-touch-icon" href="/app-icon.png" />
 </svelte:head>
 
-<OverlayScrollbarsComponent
-	element="div"
-	options={{
-		scrollbars: {
-			theme: 'os-theme-light',
-			autoHide: 'leave',
-			autoHideDelay: 400
-		}
-	}}
-	class="h-screen"
->
-	{@render children()}
-</OverlayScrollbarsComponent>
+{@render children()}
