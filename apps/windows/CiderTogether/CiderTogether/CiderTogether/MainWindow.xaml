@@ -98,6 +98,14 @@
                         <FontIcon Glyph="&#xE712;" FontSize="14"/>
                         <Button.Flyout>
                             <MenuFlyout Placement="BottomEdgeAlignedRight">
+                                <MenuFlyoutItem x:Name="UpdateMenuItem"
+                                                Text="Check for Updates..."
+                                                Click="CheckForUpdates_Click">
+                                    <MenuFlyoutItem.Icon>
+                                        <FontIcon Glyph="&#xE777;"/>
+                                    </MenuFlyoutItem.Icon>
+                                </MenuFlyoutItem>
+                                <MenuFlyoutSeparator/>
                                 <MenuFlyoutItem Text="About Cider Together"
                                                 Click="About_Click">
                                     <MenuFlyoutItem.Icon>

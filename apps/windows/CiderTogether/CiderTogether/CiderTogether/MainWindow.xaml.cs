@@ -8,6 +8,7 @@ using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Media;
 using CiderTogether.Models;
+using CiderTogether.Services;
 using CiderTogether.Views;
 using Windows.Graphics;
 using WinRT.Interop;
@@ -47,6 +48,9 @@ public sealed partial class MainWindow : Window
 
         // Navigate to initial view
         NavigateToCurrentView();
+
+        // Configure update menu item based on install source
+        ConfigureUpdateMenuItem();
 
         // Start connection check (fire and forget, errors are handled internally)
         _ = Task.Run(async () =>
@@ -293,6 +297,155 @@ public sealed partial class MainWindow : Window
 
         // Draw the blurred image
         session.DrawImage(blurEffect, offsetX, offsetY);
+    }
+
+    /// <summary>
+    /// Triggers an update check programmatically (e.g. from tray icon).
+    /// </summary>
+    public void TriggerUpdateCheck()
+    {
+        CheckForUpdates_Click(this, new RoutedEventArgs());
+    }
+
+    private void ConfigureUpdateMenuItem()
+    {
+        var updateService = UpdateService.Instance;
+        if (!updateService.CanCheckForUpdates)
+        {
+            UpdateMenuItem.Text = $"Updates managed by {updateService.ManagedByName}";
+            UpdateMenuItem.IsEnabled = false;
+        }
+    }
+
+    private async void CheckForUpdates_Click(object sender, RoutedEventArgs e)
+    {
+        var updateService = UpdateService.Instance;
+        if (!updateService.CanCheckForUpdates) return;
+
+        UpdateMenuItem.Text = "Checking for updates...";
+        UpdateMenuItem.IsEnabled = false;
+
+        try
+        {
+            var (updateAvailable, latestVersion, downloadUrl) = await updateService.CheckForUpdateAsync();
+
+            if (updateAvailable)
+            {
+                // Build the progress UI
+                var progressBar = new ProgressBar
+                {
+                    IsIndeterminate = false,
+                    Minimum = 0,
+                    Maximum = 100,
+                    Value = 0,
+                    Margin = new Thickness(0, 12, 0, 0)
+                };
+                var statusText = new TextBlock
+                {
+                    Text = $"A new version (v{latestVersion}) is available.\nYou are running v{UpdateService.GetCurrentVersion().ToString(3)}.",
+                    TextWrapping = TextWrapping.Wrap
+                };
+                var progressText = new TextBlock
+                {
+                    Text = "",
+                    Style = (Style)Application.Current.Resources["CaptionTextBlockStyle"],
+                    Foreground = (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["TextFillColorSecondaryBrush"],
+                    Margin = new Thickness(0, 4, 0, 0)
+                };
+
+                var contentPanel = new StackPanel();
+                contentPanel.Children.Add(statusText);
+                contentPanel.Children.Add(progressBar);
+                contentPanel.Children.Add(progressText);
+
+                var dialog = new ContentDialog
+                {
+                    Title = "Update Available",
+                    Content = contentPanel,
+                    PrimaryButtonText = "Install Update",
+                    CloseButtonText = "Later",
+                    XamlRoot = Content.XamlRoot
+                };
+
+                var result = await dialog.ShowAsync();
+                if (result == ContentDialogResult.Primary)
+                {
+                    // Show a non-dismissable progress dialog during download + install
+                    statusText.Text = "Downloading update...";
+                    progressBar.Value = 0;
+                    progressText.Text = "0%";
+
+                    var installDialog = new ContentDialog
+                    {
+                        Title = "Installing Update",
+                        Content = contentPanel,
+                        XamlRoot = Content.XamlRoot
+                    };
+                    // Show without awaiting — we'll close it when done or if it fails
+                    var dialogTask = installDialog.ShowAsync();
+
+                    try
+                    {
+                        var progress = new Progress<double>(p =>
+                        {
+                            DispatcherQueue.TryEnqueue(() =>
+                            {
+                                var percent = (int)(p * 100);
+                                progressBar.Value = percent;
+                                progressText.Text = $"{percent}%";
+                                if (percent >= 100)
+                                {
+                                    statusText.Text = "Installing update... The app will restart.";
+                                }
+                            });
+                        });
+
+                        await updateService.DownloadAndInstallAsync(downloadUrl, progress);
+                        // If we get here, the install succeeded but the app hasn't shut down yet
+                        // (shouldn't normally happen — ForceApplicationShutdown should close us)
+                    }
+                    catch (Exception ex)
+                    {
+                        installDialog.Hide();
+                        var errorDialog = new ContentDialog
+                        {
+                            Title = "Update Failed",
+                            Content = $"Could not install the update: {ex.Message}",
+                            CloseButtonText = "OK",
+                            XamlRoot = Content.XamlRoot
+                        };
+                        await errorDialog.ShowAsync();
+                    }
+                }
+            }
+            else
+            {
+                var dialog = new ContentDialog
+                {
+                    Title = "No Updates",
+                    Content = "You're running the latest version.",
+                    CloseButtonText = "OK",
+                    XamlRoot = Content.XamlRoot
+                };
+                await dialog.ShowAsync();
+            }
+        }
+        catch
+        {
+            var dialog = new ContentDialog
+            {
+                Title = "Update Check Failed",
+                Content = "Could not check for updates. Please try again later.",
+                CloseButtonText = "OK",
+                XamlRoot = Content.XamlRoot
+            };
+            await dialog.ShowAsync();
+        }
+        finally
+        {
+            UpdateMenuItem.Text = "Check for Updates...";
+            UpdateMenuItem.IsEnabled = true;
+        }
     }
 
     private void MinimizeToTray_Click(object sender, RoutedEventArgs e)

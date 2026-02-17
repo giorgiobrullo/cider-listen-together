@@ -1,6 +1,7 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using CiderTogether.Models;
+using CiderTogether.Services;
 using CiderTogether.Views;
 using H.NotifyIcon;
 
@@ -100,6 +101,33 @@ public partial class App : Application
             ShowWindow();
         });
         contextMenu.Items.Add(leaveRoomItem);
+
+        contextMenu.Items.Add(new MenuFlyoutSeparator());
+
+        // Check for Updates
+        var updateService = UpdateService.Instance;
+        var updateItem = new MenuFlyoutItem
+        {
+            Text = updateService.CanCheckForUpdates
+                ? "Check for Updates..."
+                : $"Updates managed by {updateService.ManagedByName}",
+            Icon = new FontIcon { Glyph = "\uE777" },
+            IsEnabled = updateService.CanCheckForUpdates
+        };
+        if (updateService.CanCheckForUpdates)
+        {
+            updateItem.Click += (s, e) => _window?.DispatcherQueue.TryEnqueue(() =>
+            {
+                // Delegate to the main window which has the full update UI
+                ShowWindow();
+                if (_window?.Content?.XamlRoot != null)
+                {
+                    // Trigger the menu button's update check programmatically
+                    _window.TriggerUpdateCheck();
+                }
+            });
+        }
+        contextMenu.Items.Add(updateItem);
 
         contextMenu.Items.Add(new MenuFlyoutSeparator());
 
