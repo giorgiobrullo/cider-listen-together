@@ -21,8 +21,9 @@ jobs:
       contents: read
       attestations: write
     env:
-      WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
-      WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+      AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+      AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+      AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
     strategy:
       matrix:
         platform: [x64]
@@ -78,28 +79,6 @@ jobs:
           $content = $content -replace 'Version="[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+"', "Version=`"$version.0`""
           Set-Content $manifestPath $content
 
-      - name: Import certificate
-        if: env.WINDOWS_CERTIFICATE != ''
-        shell: pwsh
-        run: |
-          $certBytes = [Convert]::FromBase64String($env:WINDOWS_CERTIFICATE)
-          [IO.File]::WriteAllBytes("apps/windows/CiderTogether/CiderTogether/CiderTogether.pfx", $certBytes)
-          $password = ConvertTo-SecureString -String $env:WINDOWS_CERTIFICATE_PASSWORD -Force -AsPlainText
-          $cert = Import-PfxCertificate -FilePath "apps/windows/CiderTogether/CiderTogether/CiderTogether.pfx" -CertStoreLocation "Cert:\CurrentUser\My" -Password $password
-
-          # Debug: print cert details
-          Write-Host "Certificate Subject: $($cert.Subject)"
-          Write-Host "Certificate Thumbprint: $($cert.Thumbprint)"
-          Write-Host "Certificate NotBefore: $($cert.NotBefore)"
-          Write-Host "Certificate NotAfter: $($cert.NotAfter)"
-          Write-Host "Certificate HasPrivateKey: $($cert.HasPrivateKey)"
-          $eku = $cert.Extensions | Where-Object { $_.Oid.FriendlyName -eq "Enhanced Key Usage" }
-          if ($eku) { Write-Host "Certificate EKU: $($eku.Format($true))" }
-
-          Export-Certificate -Cert $cert -FilePath "CiderTogether.cer"
-          echo "CERT_THUMBPRINT=$($cert.Thumbprint)" >> $env:GITHUB_ENV
-          echo "CERT_PASSWORD=$env:WINDOWS_CERTIFICATE_PASSWORD" >> $env:GITHUB_ENV
-
       - name: Restore dependencies
         run: |
           cd apps/windows/CiderTogether/CiderTogether/CiderTogether
@@ -111,11 +90,7 @@ jobs:
           call "C:\Program Files (x86)\Microsoft Visual Studio\18\BuildTools\Common7\Tools\VsDevCmd.bat"
           set MSBuildSDKsPath=%DOTNET_ROOT%\sdk\10.0.101\Sdks
           cd apps\windows\CiderTogether\CiderTogether\CiderTogether
-          if "%CERT_THUMBPRINT%"=="" (
-            msbuild CiderTogether.csproj -t:Restore,Build -p:Configuration=Release -p:Platform=${{ matrix.platform }} -p:GenerateAppxPackageOnBuild=true -p:AppxBundle=Never -p:UapAppxPackageBuildMode=SideloadOnly -p:AppxPackageSigningEnabled=false
-          ) else (
-            msbuild CiderTogether.csproj -t:Restore,Build -p:Configuration=Release -p:Platform=${{ matrix.platform }} -p:GenerateAppxPackageOnBuild=true -p:AppxBundle=Never -p:UapAppxPackageBuildMode=SideloadOnly -p:AppxPackageSigningEnabled=true -p:PackageCertificateThumbprint="%CERT_THUMBPRINT%" -p:PackageCertificatePassword="%CERT_PASSWORD%"
-          )
+          msbuild CiderTogether.csproj -t:Restore,Build -p:Configuration=Release -p:Platform=${{ matrix.platform }} -p:GenerateAppxPackageOnBuild=true -p:AppxBundle=Never -p:UapAppxPackageBuildMode=SideloadOnly -p:AppxPackageSigningEnabled=false
 
       - name: Find and rename MSIX
         id: msix
@@ -145,6 +120,21 @@ jobs:
             throw "No MSIX found"
           }
 
+      - name: Sign MSIX with Azure Trusted Signing
+        uses: azure/artifact-signing-action@v1
+        with:
+          azure-tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          azure-client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          azure-client-secret: ${{ secrets.AZURE_CLIENT_SECRET }}
+          endpoint: https://eus.codesigning.azure.net
+          signing-account-name: apps
+          certificate-profile-name: default
+          files-folder: ${{ github.workspace }}
+          files-folder-filter: msix
+          file-digest: SHA256
+          timestamp-rfc3161: http://timestamp.acs.microsoft.com
+          timestamp-digest: SHA256
+
       - name: Attest MSIX
         uses: actions/attest-build-provenance@v3
         with:
@@ -155,13 +145,6 @@ jobs:
         with:
           name: CiderTogether-windows-${{ matrix.platform }}
           path: ${{ steps.msix.outputs.msix_path }}
-
-      - name: Upload certificate artifact
-        if: env.WINDOWS_CERTIFICATE != ''
-        uses: actions/upload-artifact@v4
-        with:
-          name: CiderTogether-certificate
-          path: CiderTogether.cer
 
   release:
     needs: build-windows
@@ -176,12 +159,6 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: CiderTogether-windows-x64
-
-      - name: Download certificate
-        uses: actions/download-artifact@v4
-        continue-on-error: true
-        with:
-          name: CiderTogether-certificate
 
       - name: Get version
         id: version
@@ -202,6 +179,5 @@ jobs:
           fail_on_unmatched_files: false
           files: |
             CiderTogether_${{ steps.version.outputs.version }}_x64.msix
-            CiderTogether.cer
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

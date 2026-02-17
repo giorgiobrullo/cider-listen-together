@@ -9,7 +9,7 @@
 
   <Identity
     Name="c2f1a3ce-e935-4f13-8fda-bc10db8209c2"
-    Publisher="CN=Giorgio Maria Brullo"
+    Publisher="CN=BRULLO GIORGIO MARIA, O=BRULLO GIORGIO MARIA, L=Catania, C=IT"
     Version="1.0.0.0" />
 
   <mp:PhoneIdentity PhoneProductId="c2f1a3ce-e935-4f13-8fda-bc10db8209c2" PhonePublisherId="00000000-0000-0000-0000-000000000000"/>
