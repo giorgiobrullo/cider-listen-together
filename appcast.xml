@@ -7,14 +7,14 @@
     <language>en</language>
     <item>
       <title>Version 1.2.0</title>
-      <description><![CDATA[<h2>What's New</h2><ul><li>chore: bump version to 1.2.0</li> <li>chore: bump rand to 0.9 and thiserror to 2</li> <li>fix(sync): re-sync listener to host track on mismatch</li> <li>feat: add shared queue sync across room participants</li> <li>fix(website): use www subdomain for canonical URLs</li> <li>fix(website): comprehensive SEO improvements</li> <li>feat(website): add Windows download button to landing page</li> <li>feat(windows): add in-app auto-update with package manager detection</li> <li>feat(signing): switch to Azure Trusted Signing for Windows MSIX</li> <li>refactor(website): simplify landing page design and add smooth scrolling</li> <li>fix(session): improve room state management and timeout handling Prevents "already in room" issues when joining state or after getting timed out</li> <li>feat: add landing page website</li> <li>fix(session): trim whitespace from API token input</li> <li>docs: update diagram backgrounds from transparent to white</li> <li>docs: pre-render diagrams as SVGs</li> <li>Update appcast.xml for v1.1.0</li> </ul>]]></description>
-      <pubDate>Wed, 18 Feb 2026 17:35:25 +0000</pubDate>
+      <description><![CDATA[<h2>What's New</h2><ul><li>fix(windows): regenerate C# bindings and revert CI bindgen step</li> <li>fix(windows): add missing using directive and generate bindings in CI</li> <li>Update appcast.xml for v1.2.0</li> <li>chore: bump version to 1.2.0</li> <li>chore: bump rand to 0.9 and thiserror to 2</li> <li>fix(sync): re-sync listener to host track on mismatch</li> <li>feat: add shared queue sync across room participants</li> <li>fix(website): use www subdomain for canonical URLs</li> <li>fix(website): comprehensive SEO improvements</li> <li>feat(website): add Windows download button to landing page</li> <li>feat(windows): add in-app auto-update with package manager detection</li> <li>feat(signing): switch to Azure Trusted Signing for Windows MSIX</li> <li>refactor(website): simplify landing page design and add smooth scrolling</li> <li>fix(session): improve room state management and timeout handling Prevents "already in room" issues when joining state or after getting timed out</li> <li>feat: add landing page website</li> <li>fix(session): trim whitespace from API token input</li> <li>docs: update diagram backgrounds from transparent to white</li> <li>docs: pre-render diagrams as SVGs</li> <li>Update appcast.xml for v1.1.0</li> </ul>]]></description>
+      <pubDate>Wed, 18 Feb 2026 18:33:13 +0000</pubDate>
       <sparkle:version>1.2.0</sparkle:version>
       <sparkle:shortVersionString>1.2.0</sparkle:shortVersionString>
       <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
       <enclosure url="https://github.com/giorgiobrullo/cider-listen-together/releases/download/v1.2.0/CiderTogether-1.2.0.dmg"
-                 sparkle:edSignature="sTuXc824VNN4aI8rdEUPxN8iMoW/kJSyxs5dW51Y0Qe6F4ay7i+JQhzWKQ0PU1VkL7MD/5EsT+pUxxM7Pm8aAw=="
-                 length="13855223"
+                 sparkle:edSignature="Im2ro0dx5pKI9qh/jroN5i7yUtqMI6BHZvlne7/mDRTbYGD29CzLKgk50A1IUqolmTRPm39Gztc3+jI69GX6AA=="
+                 length="13850132"
                  type="application/octet-stream"/>
     </item>
   </channel>
