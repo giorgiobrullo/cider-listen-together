@@ -1,6 +1,6 @@
 export const prerender = true;
 
-const site = 'https://cidertogether.app';
+const site = 'https://www.cidertogether.app';
 
 export function GET() {
 	const lastmod = new Date().toISOString().split('T')[0];

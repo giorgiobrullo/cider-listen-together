@@ -23,7 +23,7 @@
 	});
 	const brewCommand = 'brew install giorgiobrullo/tap/cider-together';
 
-	const siteUrl = 'https://cidertogether.app';
+	const siteUrl = 'https://www.cidertogether.app';
 	const title = 'Listen Together for Cider - Sync Apple Music playback with friends';
 	const description = 'Listen to Apple Music together with friends in real-time using peer-to-peer sync. A free companion app for Cider, available on macOS and Windows.';
 
