@@ -188,38 +188,38 @@ struct UniffiRustCallStatus {
 }
 
 // Base class for all uniffi exceptions
-internal class UniffiException: System.Exception {
+public class UniffiException: System.Exception {
     public UniffiException(): base() {}
     public UniffiException(string message): base(message) {}
 }
 
-internal class UndeclaredErrorException: UniffiException {
+public class UndeclaredErrorException: UniffiException {
     public UndeclaredErrorException(string message): base(message) {}
 }
 
-internal class PanicException: UniffiException {
+public class PanicException: UniffiException {
     public PanicException(string message): base(message) {}
 }
 
-internal class AllocationException: UniffiException {
+public class AllocationException: UniffiException {
     public AllocationException(string message): base(message) {}
 }
 
-internal class InternalException: UniffiException {
+public class InternalException: UniffiException {
     public InternalException(string message): base(message) {}
 }
 
-internal class InvalidEnumException: InternalException {
+public class InvalidEnumException: InternalException {
     public InvalidEnumException(string message): base(message) {
     }
 }
 
-internal class UniffiContractVersionException: UniffiException {
+public class UniffiContractVersionException: UniffiException {
     public UniffiContractVersionException(string message): base(message) {
     }
 }
 
-internal class UniffiContractChecksumException: UniffiException {
+public class UniffiContractChecksumException: UniffiException {
     public UniffiContractChecksumException(string message): base(message) {
     }
 }
@@ -1691,7 +1691,7 @@ class FfiConverterString: FfiConverter<string, RustBuffer> {
 /// <summary>
 /// Main session interface
 /// </summary>
-internal interface ISession {
+public interface ISession {
     /// <summary>
     /// Broadcast current playback state to room (for host heartbeat)
     /// </summary>
@@ -1810,7 +1810,7 @@ internal interface ISession {
 /// <summary>
 /// Main session interface
 /// </summary>
-internal class Session : ISession, IDisposable {
+public class Session : ISession, IDisposable {
     protected IntPtr pointer;
     private int _wasDestroyed = 0;
     private long _callCounter = 1;
@@ -2243,7 +2243,7 @@ class FfiConverterTypeSession: FfiConverter<Session, IntPtr> {
 /// <param name="rejected">
 /// Whether this sample was rejected as outlier
 /// </param>
-internal record CalibrationSample (
+public recordCalibrationSample (
     /// <summary>
     /// Drift measured after seek (positive = ahead, negative = behind)
     /// </summary>
@@ -2296,7 +2296,7 @@ class FfiConverterTypeCalibrationSample: FfiConverterRustBuffer<CalibrationSampl
 /// <summary>
 /// Current playback info (for polling) exposed via FFI
 /// </summary>
-internal record CurrentPlayback (
+public recordCurrentPlayback (
     TrackInfo? @track, 
     bool @isPlaying
 ) {
@@ -2329,7 +2329,7 @@ class FfiConverterTypeCurrentPlayback: FfiConverterRustBuffer<CurrentPlayback> {
 /// <summary>
 /// Participant exposed via FFI
 /// </summary>
-internal record Participant (
+public recordParticipant (
     string @peerId, 
     string @displayName, 
     bool @isHost
@@ -2366,7 +2366,7 @@ class FfiConverterTypeParticipant: FfiConverterRustBuffer<Participant> {
 /// <summary>
 /// Playback state exposed via FFI
 /// </summary>
-internal record PlaybackState (
+public recordPlaybackState (
     bool @isPlaying, 
     ulong @positionMs, 
     ulong @timestampMs
@@ -2403,7 +2403,7 @@ class FfiConverterTypePlaybackState: FfiConverterRustBuffer<PlaybackState> {
 /// <summary>
 /// Room state exposed via FFI
 /// </summary>
-internal record RoomState (
+public recordRoomState (
     string @roomCode, 
     string @localPeerId, 
     string @hostPeerId, 
@@ -2478,7 +2478,7 @@ class FfiConverterTypeRoomState: FfiConverterRustBuffer<RoomState> {
 /// <param name="sample_history">
 /// Recent calibration samples (newest last)
 /// </param>
-internal record SyncStatus (
+public recordSyncStatus (
     /// <summary>
     /// Drift in milliseconds (positive = ahead of host, negative = behind)
     /// </summary>
@@ -2553,7 +2553,7 @@ class FfiConverterTypeSyncStatus: FfiConverterRustBuffer<SyncStatus> {
 /// <summary>
 /// Track information exposed via FFI
 /// </summary>
-internal record TrackInfo (
+public recordTrackInfo (
     string @songId, 
     string @name, 
     string @artist, 
@@ -2608,7 +2608,7 @@ class FfiConverterTypeTrackInfo: FfiConverterRustBuffer<TrackInfo> {
 /// <summary>
 /// Error types exposed via FFI
 /// </summary>
-internal class CoreException: UniffiException {
+public class CoreException: UniffiException {
     CoreException() : base() {}
     CoreException(String @Message) : base(@Message) {}
 
@@ -2769,7 +2769,7 @@ class FfiConverterTypeCoreError : FfiConverterRustBuffer<CoreException>, CallSta
 /// <summary>
 /// Callback interface for session events
 /// </summary>
-internal interface SessionCallback {
+public interface SessionCallback {
     void OnRoomStateChanged(RoomState @state);
     void OnTrackChanged(TrackInfo? @track);
     void OnPlaybackChanged(PlaybackState @playback);
