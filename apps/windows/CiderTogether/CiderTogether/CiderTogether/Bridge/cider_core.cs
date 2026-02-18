@@ -188,7 +188,7 @@ struct UniffiRustCallStatus {
 }
 
 // Base class for all uniffi exceptions
-public class UniffiException: System.Exception {
+internal class UniffiException: System.Exception {
     public UniffiException(): base() {}
     public UniffiException(string message): base(message) {}
 }
@@ -853,6 +853,12 @@ static class _UniFFILib {
     
     
     
+    
+    
+    
+    
+    
+    
 
     static _UniFFILib() {
         _UniFFILib.uniffiCheckContractApiVersion();
@@ -922,11 +928,23 @@ static class _UniFFILib {
     );
 
     [DllImport("cider_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern void uniffi_cider_core_fn_method_session_request_queue_add(IntPtr @ptr,RustBuffer @songId,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("cider_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern void uniffi_cider_core_fn_method_session_set_bootstrap_nodes(IntPtr @ptr,RustBuffer @nodes,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("cider_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern void uniffi_cider_core_fn_method_session_set_callback(IntPtr @ptr,ulong @callback,ref UniffiRustCallStatus _uniffi_out_err
     );
 
     [DllImport("cider_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern void uniffi_cider_core_fn_method_session_set_cider_token(IntPtr @ptr,RustBuffer @token,ref UniffiRustCallStatus _uniffi_out_err
+    );
+
+    [DllImport("cider_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern void uniffi_cider_core_fn_method_session_set_signaling_url(IntPtr @ptr,RustBuffer @url,ref UniffiRustCallStatus _uniffi_out_err
     );
 
     [DllImport("cider_core", CallingConvention = CallingConvention.Cdecl)]
@@ -954,7 +972,7 @@ static class _UniFFILib {
     );
 
     [DllImport("cider_core", CallingConvention = CallingConvention.Cdecl)]
-    public static extern void uniffi_cider_core_fn_init_callback_vtable_sessioncallback(ref _UniFFILib.UniffiVTableCallbackInterfaceSessionCallback @vtable
+    public static extern void uniffi_cider_core_fn_init_callback_vtable_sessioncallback(IntPtr /*_UniFFILib.UniffiVTableCallbackInterfaceSessionCallback*/ @vtable
     );
 
     [DllImport("cider_core", CallingConvention = CallingConvention.Cdecl)]
@@ -1230,11 +1248,23 @@ static class _UniFFILib {
     );
 
     [DllImport("cider_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_cider_core_checksum_method_session_request_queue_add(
+    );
+
+    [DllImport("cider_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_cider_core_checksum_method_session_set_bootstrap_nodes(
+    );
+
+    [DllImport("cider_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern ushort uniffi_cider_core_checksum_method_session_set_callback(
     );
 
     [DllImport("cider_core", CallingConvention = CallingConvention.Cdecl)]
     public static extern ushort uniffi_cider_core_checksum_method_session_set_cider_token(
+    );
+
+    [DllImport("cider_core", CallingConvention = CallingConvention.Cdecl)]
+    public static extern ushort uniffi_cider_core_checksum_method_session_set_signaling_url(
     );
 
     [DllImport("cider_core", CallingConvention = CallingConvention.Cdecl)]
@@ -1392,6 +1422,18 @@ static class _UniFFILib {
             }
         }
         {
+            var checksum = _UniFFILib.uniffi_cider_core_checksum_method_session_request_queue_add();
+            if (checksum != 28992) {
+                throw new UniffiContractChecksumException($"uniffi.cider_core: uniffi bindings expected function `uniffi_cider_core_checksum_method_session_request_queue_add` checksum `28992`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_cider_core_checksum_method_session_set_bootstrap_nodes();
+            if (checksum != 19665) {
+                throw new UniffiContractChecksumException($"uniffi.cider_core: uniffi bindings expected function `uniffi_cider_core_checksum_method_session_set_bootstrap_nodes` checksum `19665`, library returned `{checksum}`");
+            }
+        }
+        {
             var checksum = _UniFFILib.uniffi_cider_core_checksum_method_session_set_callback();
             if (checksum != 55902) {
                 throw new UniffiContractChecksumException($"uniffi.cider_core: uniffi bindings expected function `uniffi_cider_core_checksum_method_session_set_callback` checksum `55902`, library returned `{checksum}`");
@@ -1401,6 +1443,12 @@ static class _UniFFILib {
             var checksum = _UniFFILib.uniffi_cider_core_checksum_method_session_set_cider_token();
             if (checksum != 49915) {
                 throw new UniffiContractChecksumException($"uniffi.cider_core: uniffi bindings expected function `uniffi_cider_core_checksum_method_session_set_cider_token` checksum `49915`, library returned `{checksum}`");
+            }
+        }
+        {
+            var checksum = _UniFFILib.uniffi_cider_core_checksum_method_session_set_signaling_url();
+            if (checksum != 24584) {
+                throw new UniffiContractChecksumException($"uniffi.cider_core: uniffi bindings expected function `uniffi_cider_core_checksum_method_session_set_signaling_url` checksum `24584`, library returned `{checksum}`");
             }
         }
         {
@@ -1702,6 +1750,20 @@ internal interface ISession {
     /// <exception cref="CoreException"></exception>
     void LeaveRoom();
     /// <summary>
+    /// Request adding a song to the shared queue.
+    /// If host, adds directly to Cider's queue via play_later.
+    /// If listener, sends a QueueAdd request to the host.
+    /// </summary>
+    /// <exception cref="CoreException"></exception>
+    void RequestQueueAdd(string @songId);
+    /// <summary>
+    /// Set custom bootstrap/relay nodes
+    /// Must be called before creating/joining a room
+    /// Format: "/ip4/127.0.0.1/tcp/4001/p2p/PEER_ID" or "/ip4/YOUR_IP/tcp/4001/p2p/PEER_ID"
+    /// If not set, uses default IPFS bootstrap nodes
+    /// </summary>
+    void SetBootstrapNodes(string[] @nodes);
+    /// <summary>
     /// Set the event callback
     /// </summary>
     void SetCallback(SessionCallback @callback);
@@ -1709,6 +1771,11 @@ internal interface ISession {
     /// Set the Cider API token
     /// </summary>
     void SetCiderToken(string? @token);
+    /// <summary>
+    /// Set the signaling server URL (e.g., "https://ntfy.sh" or your own server)
+    /// Must be called before creating/joining a room
+    /// </summary>
+    void SetSignalingUrl(string @url);
     /// <summary>
     /// Sync next command (host only)
     /// </summary>
@@ -1743,7 +1810,7 @@ internal interface ISession {
 /// <summary>
 /// Main session interface
 /// </summary>
-public class Session : ISession, IDisposable {
+internal class Session : ISession, IDisposable {
     protected IntPtr pointer;
     private int _wasDestroyed = 0;
     private long _callCounter = 1;
@@ -1987,6 +2054,36 @@ public class Session : ISession, IDisposable {
     
     
     /// <summary>
+    /// Request adding a song to the shared queue.
+    /// If host, adds directly to Cider's queue via play_later.
+    /// If listener, sends a QueueAdd request to the host.
+    /// </summary>
+    /// <exception cref="CoreException"></exception>
+    public void RequestQueueAdd(string @songId) {
+        CallWithPointer(thisPtr =>
+    _UniffiHelpers.RustCallWithError(FfiConverterTypeCoreError.INSTANCE, (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_cider_core_fn_method_session_request_queue_add(thisPtr, FfiConverterString.INSTANCE.Lower(@songId), ref _status)
+));
+    }
+    
+    
+    
+    /// <summary>
+    /// Set custom bootstrap/relay nodes
+    /// Must be called before creating/joining a room
+    /// Format: "/ip4/127.0.0.1/tcp/4001/p2p/PEER_ID" or "/ip4/YOUR_IP/tcp/4001/p2p/PEER_ID"
+    /// If not set, uses default IPFS bootstrap nodes
+    /// </summary>
+    public void SetBootstrapNodes(string[] @nodes) {
+        CallWithPointer(thisPtr =>
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_cider_core_fn_method_session_set_bootstrap_nodes(thisPtr, FfiConverterSequenceString.INSTANCE.Lower(@nodes), ref _status)
+));
+    }
+    
+    
+    
+    /// <summary>
     /// Set the event callback
     /// </summary>
     public void SetCallback(SessionCallback @callback) {
@@ -2005,6 +2102,19 @@ public class Session : ISession, IDisposable {
         CallWithPointer(thisPtr =>
     _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
     _UniFFILib.uniffi_cider_core_fn_method_session_set_cider_token(thisPtr, FfiConverterOptionalString.INSTANCE.Lower(@token), ref _status)
+));
+    }
+    
+    
+    
+    /// <summary>
+    /// Set the signaling server URL (e.g., "https://ntfy.sh" or your own server)
+    /// Must be called before creating/joining a room
+    /// </summary>
+    public void SetSignalingUrl(string @url) {
+        CallWithPointer(thisPtr =>
+    _UniffiHelpers.RustCall( (ref UniffiRustCallStatus _status) =>
+    _UniFFILib.uniffi_cider_core_fn_method_session_set_signaling_url(thisPtr, FfiConverterString.INSTANCE.Lower(@url), ref _status)
 ));
     }
     
@@ -2133,7 +2243,7 @@ class FfiConverterTypeSession: FfiConverter<Session, IntPtr> {
 /// <param name="rejected">
 /// Whether this sample was rejected as outlier
 /// </param>
-public record CalibrationSample (
+internal record CalibrationSample (
     /// <summary>
     /// Drift measured after seek (positive = ahead, negative = behind)
     /// </summary>
@@ -2186,7 +2296,7 @@ class FfiConverterTypeCalibrationSample: FfiConverterRustBuffer<CalibrationSampl
 /// <summary>
 /// Current playback info (for polling) exposed via FFI
 /// </summary>
-public record CurrentPlayback (
+internal record CurrentPlayback (
     TrackInfo? @track, 
     bool @isPlaying
 ) {
@@ -2219,7 +2329,7 @@ class FfiConverterTypeCurrentPlayback: FfiConverterRustBuffer<CurrentPlayback> {
 /// <summary>
 /// Participant exposed via FFI
 /// </summary>
-public record Participant (
+internal record Participant (
     string @peerId, 
     string @displayName, 
     bool @isHost
@@ -2256,7 +2366,7 @@ class FfiConverterTypeParticipant: FfiConverterRustBuffer<Participant> {
 /// <summary>
 /// Playback state exposed via FFI
 /// </summary>
-public record PlaybackState (
+internal record PlaybackState (
     bool @isPlaying, 
     ulong @positionMs, 
     ulong @timestampMs
@@ -2293,13 +2403,14 @@ class FfiConverterTypePlaybackState: FfiConverterRustBuffer<PlaybackState> {
 /// <summary>
 /// Room state exposed via FFI
 /// </summary>
-public record RoomState (
+internal record RoomState (
     string @roomCode, 
     string @localPeerId, 
     string @hostPeerId, 
     Participant[] @participants, 
     TrackInfo? @currentTrack, 
-    PlaybackState @playback
+    PlaybackState @playback, 
+    TrackInfo[] @queue
 ) {
 }
 
@@ -2313,7 +2424,8 @@ class FfiConverterTypeRoomState: FfiConverterRustBuffer<RoomState> {
             @hostPeerId: FfiConverterString.INSTANCE.Read(stream),
             @participants: FfiConverterSequenceTypeParticipant.INSTANCE.Read(stream),
             @currentTrack: FfiConverterOptionalTypeTrackInfo.INSTANCE.Read(stream),
-            @playback: FfiConverterTypePlaybackState.INSTANCE.Read(stream)
+            @playback: FfiConverterTypePlaybackState.INSTANCE.Read(stream),
+            @queue: FfiConverterSequenceTypeTrackInfo.INSTANCE.Read(stream)
         );
     }
 
@@ -2324,7 +2436,8 @@ class FfiConverterTypeRoomState: FfiConverterRustBuffer<RoomState> {
             + FfiConverterString.INSTANCE.AllocationSize(value.@hostPeerId)
             + FfiConverterSequenceTypeParticipant.INSTANCE.AllocationSize(value.@participants)
             + FfiConverterOptionalTypeTrackInfo.INSTANCE.AllocationSize(value.@currentTrack)
-            + FfiConverterTypePlaybackState.INSTANCE.AllocationSize(value.@playback);
+            + FfiConverterTypePlaybackState.INSTANCE.AllocationSize(value.@playback)
+            + FfiConverterSequenceTypeTrackInfo.INSTANCE.AllocationSize(value.@queue);
     }
 
     public override void Write(RoomState value, BigEndianStream stream) {
@@ -2334,6 +2447,7 @@ class FfiConverterTypeRoomState: FfiConverterRustBuffer<RoomState> {
             FfiConverterSequenceTypeParticipant.INSTANCE.Write(value.@participants, stream);
             FfiConverterOptionalTypeTrackInfo.INSTANCE.Write(value.@currentTrack, stream);
             FfiConverterTypePlaybackState.INSTANCE.Write(value.@playback, stream);
+            FfiConverterSequenceTypeTrackInfo.INSTANCE.Write(value.@queue, stream);
     }
 }
 
@@ -2364,7 +2478,7 @@ class FfiConverterTypeRoomState: FfiConverterRustBuffer<RoomState> {
 /// <param name="sample_history">
 /// Recent calibration samples (newest last)
 /// </param>
-public record SyncStatus (
+internal record SyncStatus (
     /// <summary>
     /// Drift in milliseconds (positive = ahead of host, negative = behind)
     /// </summary>
@@ -2439,7 +2553,7 @@ class FfiConverterTypeSyncStatus: FfiConverterRustBuffer<SyncStatus> {
 /// <summary>
 /// Track information exposed via FFI
 /// </summary>
-public record TrackInfo (
+internal record TrackInfo (
     string @songId, 
     string @name, 
     string @artist, 
@@ -2494,7 +2608,7 @@ class FfiConverterTypeTrackInfo: FfiConverterRustBuffer<TrackInfo> {
 /// <summary>
 /// Error types exposed via FFI
 /// </summary>
-public class CoreException: UniffiException {
+internal class CoreException: UniffiException {
     CoreException() : base() {}
     CoreException(String @Message) : base(@Message) {}
 
@@ -2655,7 +2769,7 @@ class FfiConverterTypeCoreError : FfiConverterRustBuffer<CoreException>, CallSta
 /// <summary>
 /// Callback interface for session events
 /// </summary>
-public interface SessionCallback {
+internal interface SessionCallback {
     void OnRoomStateChanged(RoomState @state);
     void OnTrackChanged(TrackInfo? @track);
     void OnPlaybackChanged(PlaybackState @playback);
@@ -2776,22 +2890,23 @@ class UniffiCallbackInterfaceSessionCallback {
     static _UniFFILib.UniffiCallbackInterfaceSessionCallbackMethod9 _m9 = new _UniFFILib.UniffiCallbackInterfaceSessionCallbackMethod9(OnSyncStatus);
     static _UniFFILib.UniffiCallbackInterfaceFree _callback_interface_free = new _UniFFILib.UniffiCallbackInterfaceFree(UniffiFree);
 
-    public static _UniFFILib.UniffiVTableCallbackInterfaceSessionCallback _vtable = new _UniFFILib.UniffiVTableCallbackInterfaceSessionCallback {
-        @onRoomStateChanged = Marshal.GetFunctionPointerForDelegate(_m0),
-        @onTrackChanged = Marshal.GetFunctionPointerForDelegate(_m1),
-        @onPlaybackChanged = Marshal.GetFunctionPointerForDelegate(_m2),
-        @onParticipantJoined = Marshal.GetFunctionPointerForDelegate(_m3),
-        @onParticipantLeft = Marshal.GetFunctionPointerForDelegate(_m4),
-        @onRoomEnded = Marshal.GetFunctionPointerForDelegate(_m5),
-        @onError = Marshal.GetFunctionPointerForDelegate(_m6),
-        @onConnected = Marshal.GetFunctionPointerForDelegate(_m7),
-        @onDisconnected = Marshal.GetFunctionPointerForDelegate(_m8),
-        @onSyncStatus = Marshal.GetFunctionPointerForDelegate(_m9),
-        @uniffiFree = Marshal.GetFunctionPointerForDelegate(_callback_interface_free)
-    };
-
     public static void Register() {
-        _UniFFILib.uniffi_cider_core_fn_init_callback_vtable_sessioncallback(ref UniffiCallbackInterfaceSessionCallback._vtable);
+        _UniFFILib.UniffiVTableCallbackInterfaceSessionCallback _vtable = new _UniFFILib.UniffiVTableCallbackInterfaceSessionCallback {
+            @onRoomStateChanged = Marshal.GetFunctionPointerForDelegate(_m0),
+            @onTrackChanged = Marshal.GetFunctionPointerForDelegate(_m1),
+            @onPlaybackChanged = Marshal.GetFunctionPointerForDelegate(_m2),
+            @onParticipantJoined = Marshal.GetFunctionPointerForDelegate(_m3),
+            @onParticipantLeft = Marshal.GetFunctionPointerForDelegate(_m4),
+            @onRoomEnded = Marshal.GetFunctionPointerForDelegate(_m5),
+            @onError = Marshal.GetFunctionPointerForDelegate(_m6),
+            @onConnected = Marshal.GetFunctionPointerForDelegate(_m7),
+            @onDisconnected = Marshal.GetFunctionPointerForDelegate(_m8),
+            @onSyncStatus = Marshal.GetFunctionPointerForDelegate(_m9),
+            @uniffiFree = Marshal.GetFunctionPointerForDelegate(_callback_interface_free)
+        };
+
+        // Pin vtable to ensure GC does not move the vtable across the heap
+        _UniFFILib.uniffi_cider_core_fn_init_callback_vtable_sessioncallback(GCHandle.Alloc(_vtable, GCHandleType.Pinned).AddrOfPinnedObject());
     }
 }
 
@@ -3007,6 +3122,52 @@ class FfiConverterOptionalTypeTrackInfo: FfiConverterRustBuffer<TrackInfo?> {
 
 
 
+class FfiConverterSequenceString: FfiConverterRustBuffer<string[]> {
+    public static FfiConverterSequenceString INSTANCE = new FfiConverterSequenceString();
+
+    public override string[]  Read(BigEndianStream stream) {
+        var length = stream.ReadInt();
+        if (length == 0) {
+            return [];
+        }
+
+        var result = new string[(length)];
+        var readFn = FfiConverterString.INSTANCE.Read;
+        for (int i = 0; i < length; i++) {
+            result[i] = readFn(stream);
+        }
+        return result;
+    }
+
+    public override int AllocationSize(string[]  value) {
+        var sizeForLength = 4;
+
+        // details/1-empty-list-as-default-method-parameter.md
+        if (value == null) {
+            return sizeForLength;
+        }
+
+        var allocationSizeFn = FfiConverterString.INSTANCE.AllocationSize;
+        var sizeForItems = value.Sum(item => allocationSizeFn(item));
+        return sizeForLength + sizeForItems;
+    }
+
+    public override void Write(string[] value, BigEndianStream stream) {
+        // details/1-empty-list-as-default-method-parameter.md
+        if (value == null) {
+            stream.WriteInt(0);
+            return;
+        }
+
+        stream.WriteInt(value.Length);
+        var writerFn = FfiConverterString.INSTANCE.Write;
+        value.ForEach(item => writerFn(item, stream));
+    }
+}
+
+
+
+
 class FfiConverterSequenceTypeCalibrationSample: FfiConverterRustBuffer<CalibrationSample[]> {
     public static FfiConverterSequenceTypeCalibrationSample INSTANCE = new FfiConverterSequenceTypeCalibrationSample();
 
@@ -3092,6 +3253,52 @@ class FfiConverterSequenceTypeParticipant: FfiConverterRustBuffer<Participant[]>
 
         stream.WriteInt(value.Length);
         var writerFn = FfiConverterTypeParticipant.INSTANCE.Write;
+        value.ForEach(item => writerFn(item, stream));
+    }
+}
+
+
+
+
+class FfiConverterSequenceTypeTrackInfo: FfiConverterRustBuffer<TrackInfo[]> {
+    public static FfiConverterSequenceTypeTrackInfo INSTANCE = new FfiConverterSequenceTypeTrackInfo();
+
+    public override TrackInfo[]  Read(BigEndianStream stream) {
+        var length = stream.ReadInt();
+        if (length == 0) {
+            return [];
+        }
+
+        var result = new TrackInfo[(length)];
+        var readFn = FfiConverterTypeTrackInfo.INSTANCE.Read;
+        for (int i = 0; i < length; i++) {
+            result[i] = readFn(stream);
+        }
+        return result;
+    }
+
+    public override int AllocationSize(TrackInfo[]  value) {
+        var sizeForLength = 4;
+
+        // details/1-empty-list-as-default-method-parameter.md
+        if (value == null) {
+            return sizeForLength;
+        }
+
+        var allocationSizeFn = FfiConverterTypeTrackInfo.INSTANCE.AllocationSize;
+        var sizeForItems = value.Sum(item => allocationSizeFn(item));
+        return sizeForLength + sizeForItems;
+    }
+
+    public override void Write(TrackInfo[] value, BigEndianStream stream) {
+        // details/1-empty-list-as-default-method-parameter.md
+        if (value == null) {
+            stream.WriteInt(0);
+            return;
+        }
+
+        stream.WriteInt(value.Length);
+        var writerFn = FfiConverterTypeTrackInfo.INSTANCE.Write;
         value.ForEach(item => writerFn(item, stream));
     }
 }

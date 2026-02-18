@@ -47,10 +47,6 @@ jobs:
           cargo build --release -p cider-core
           Copy-Item target/release/cider_core.dll apps/windows/CiderTogether/CiderTogether/CiderTogether/Bridge/
 
-      - name: Generate C# bindings
-        run: |
-          cargo run --bin uniffi-bindgen generate --library target/release/cider_core.dll --language csharp --out-dir apps/windows/CiderTogether/CiderTogether/CiderTogether/Bridge
-
       - name: Install Visual Studio 2026 Build Tools
         shell: pwsh
         run: |
