@@ -24,8 +24,8 @@
 	const brewCommand = 'brew install giorgiobrullo/tap/cider-together';
 
 	const siteUrl = 'https://cidertogether.app';
-	const title = 'Listen Together - Sync Cider playback with friends';
-	const description = 'Listen to Apple Music together with friends in real-time. P2P sync via libp2p. Available for macOS and Windows.';
+	const title = 'Listen Together for Cider - Sync Apple Music playback with friends';
+	const description = 'Listen to Apple Music together with friends in real-time using peer-to-peer sync. A free companion app for Cider, available on macOS and Windows.';
 
 	const emailParts = ['contact', 'cidertogether', 'app'];
 	const email = $derived(`${emailParts[0]}@${emailParts[1]}.${emailParts[2]}`);
@@ -49,10 +49,10 @@
 		siteName: 'Listen Together',
 		images: [
 			{
-				url: `${siteUrl}/screenshot.png`,
+				url: `${siteUrl}/og-image.png`,
 				width: 1200,
 				height: 630,
-				alt: 'Listen Together app screenshot'
+				alt: 'Listen Together for Cider - sync Apple Music playback with friends on macOS and Windows'
 			}
 		]
 	}}
@@ -60,8 +60,8 @@
 		cardType: 'summary_large_image',
 		title,
 		description,
-		image: `${siteUrl}/screenshot.png`,
-		imageAlt: 'Listen Together app screenshot'
+		image: `${siteUrl}/og-image.png`,
+		imageAlt: 'Listen Together for Cider - sync Apple Music playback with friends on macOS and Windows'
 	}}
 	additionalMetaTags={[
 		{ name: 'keywords', content: 'Apple Music, Cider, listen together, music sync, P2P, peer-to-peer, macOS, Windows' },
@@ -69,6 +69,31 @@
 		{ name: 'theme-color', content: '#f97316' }
 	]}
 />
+
+<svelte:head>
+	{@html `<script type="application/ld+json">${JSON.stringify({
+		"@context": "https://schema.org",
+		"@type": "SoftwareApplication",
+		"name": "Listen Together",
+		"description": "A companion app for Cider that syncs Apple Music playback between friends using peer-to-peer connections.",
+		"applicationCategory": "MultimediaApplication",
+		"operatingSystem": "macOS, Windows",
+		"offers": {
+			"@type": "Offer",
+			"price": "0",
+			"priceCurrency": "USD"
+		},
+		"author": {
+			"@type": "Person",
+			"name": "Giorgio Brullo",
+			"url": "https://github.com/giorgiobrullo"
+		},
+		"url": siteUrl,
+		"downloadUrl": "https://github.com/giorgiobrullo/cider-listen-together/releases/latest",
+		"screenshot": `${siteUrl}/screenshot.png`,
+		"softwareVersion": "1.1.0"
+	})}</script>`}
+</svelte:head>
 
 <div class="min-h-screen relative">
 	<!-- Background -->
@@ -92,11 +117,8 @@
 	<div class="max-w-2xl mx-auto px-6 py-24 md:py-32">
 		<!-- Header -->
 		<header class="flex items-center gap-4 mb-20">
-			<img src="/app-icon.png" alt="Listen Together" class="w-14 h-14 rounded-2xl shadow-lg" />
-			<div>
-				<h1 class="text-xl font-semibold">Listen Together</h1>
-				<p class="text-white/40 text-sm">for Cider</p>
-			</div>
+			<img src="/app-icon.png" alt="Listen Together for Cider app icon" width="56" height="56" class="w-14 h-14 rounded-2xl shadow-lg" />
+			<h1 class="text-xl font-semibold">Listen Together <span class="text-white/40 font-normal">for Cider</span></h1>
 		</header>
 
 		<!-- Main content -->
@@ -112,11 +134,17 @@
 
 			<!-- Screenshot -->
 			<div class="mb-16 -mx-6 md:mx-0">
-				<img
-					src="/screenshot.png"
-					alt="Listen Together app"
-					class="w-auto max-h-[400px] mx-auto rounded-xl md:rounded-2xl shadow-2xl ring-1 ring-white/10"
-				/>
+				<picture>
+					<source srcset="/screenshot.webp" type="image/webp" />
+					<img
+						src="/screenshot.png"
+						alt="Listen Together app showing synchronized music playback session between friends"
+						width="784"
+						height="1196"
+						loading="lazy"
+						class="w-auto max-h-[400px] mx-auto rounded-xl md:rounded-2xl shadow-2xl ring-1 ring-white/10"
+					/>
+				</picture>
 			</div>
 
 			<!-- Download -->
@@ -138,7 +166,8 @@
 							<button
 								onclick={copyToClipboard}
 								class="p-1.5 rounded hover:bg-white/10 transition-colors"
-								title="Copy"
+								title="Copy to clipboard"
+								aria-label="Copy Homebrew install command"
 							>
 								{#if copied}
 									<IconCheck class="w-4 h-4 text-green-400" stroke={2} />
