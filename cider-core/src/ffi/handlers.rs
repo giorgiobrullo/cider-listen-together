@@ -264,9 +264,9 @@ pub async fn handle_sync_message(
             }
         }
 
-        SyncMessage::Heartbeat { track_id: _, playback } => {
+        SyncMessage::Heartbeat { track_id, playback } => {
             if is_from_host(&from, room) {
-                handle_heartbeat(playback, room, callback, cider, latency_tracker, seek_calibrator).await;
+                handle_heartbeat(track_id, playback, room, callback, cider, latency_tracker, seek_calibrator).await;
             } else {
                 debug!("Ignoring Heartbeat from non-host: {}", from);
             }
@@ -735,6 +735,7 @@ async fn handle_track_change(
 const DRIFT_THRESHOLD_MS: u64 = 3000;
 
 async fn handle_heartbeat(
+    host_track_id: Option<String>,
     playback: crate::sync::PlaybackInfo,
     room: &Arc<RwLock<Room>>,
     callback: &Arc<RwLock<Option<Arc<dyn SessionCallback>>>>,
@@ -758,6 +759,72 @@ async fn handle_heartbeat(
 
         // Check current position from now_playing
         if let Ok(Some(np)) = cider_client.now_playing().await {
+            // Check if listener is on the wrong track — if so, switch them back
+            if let Some(ref host_song_id) = host_track_id {
+                let listener_song_id = np.song_id().map(|s| s.to_string());
+                if listener_song_id.as_deref() != Some(host_song_id) {
+                    info!(
+                        "Heartbeat: track mismatch — listener on {:?}, host on {}, re-syncing track",
+                        listener_song_id, host_song_id
+                    );
+                    let _ = cider_client.play_item("songs", host_song_id).await;
+
+                    // Wait for track to load (max 5s)
+                    let max_wait = Duration::from_secs(5);
+                    let poll_interval = Duration::from_millis(100);
+                    let start = std::time::Instant::now();
+                    loop {
+                        if start.elapsed() > max_wait {
+                            warn!("Heartbeat: timeout waiting for track re-sync");
+                            break;
+                        }
+                        if let Ok(Some(np2)) = cider_client.now_playing().await {
+                            if np2.song_id() == Some(host_song_id) {
+                                info!("Heartbeat: track re-synced after {:?}", start.elapsed());
+                                break;
+                            }
+                        }
+                        tokio::time::sleep(poll_interval).await;
+                    }
+
+                    // Seek to host's current position
+                    let now = super::types::current_time_ms();
+                    let elapsed = now.saturating_sub(playback.timestamp_ms);
+                    let target = if playback.is_playing {
+                        playback.position_ms + elapsed + seek_offset_ms
+                    } else {
+                        playback.position_ms
+                    };
+                    let _ = cider_client.seek_ms(target).await;
+
+                    {
+                        let mut calibrator = seek_calibrator.write().unwrap();
+                        calibrator.mark_seek_performed();
+                    }
+
+                    // Skip normal drift check — we just re-synced
+                    // Still sync play/pause below
+                    if let Ok(is_currently_playing) = cider_client.is_playing().await {
+                        if playback.is_playing && !is_currently_playing {
+                            let _ = cider_client.play().await;
+                        } else if !playback.is_playing && is_currently_playing {
+                            let _ = cider_client.pause().await;
+                        }
+                    }
+
+                    // Update local state and return early
+                    let mut room_guard = room.write().unwrap();
+                    if let Some(state) = room_guard.state_mut() {
+                        if !state.is_host() {
+                            state.update_playback(playback.clone());
+                            if let Some(cb) = callback.read().unwrap().as_ref() {
+                                cb.on_playback_changed(PlaybackState::from(&playback));
+                            }
+                        }
+                    }
+                    return;
+                }
+            }
             // Calculate expected position NOW (after async call completes)
             // This gives more accurate comparison since current_position is also "now"
             let now = super::types::current_time_ms();
