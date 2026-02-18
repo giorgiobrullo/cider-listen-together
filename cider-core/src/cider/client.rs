@@ -392,6 +392,33 @@ impl CiderClient {
             .error_for_status()?;
         Ok(())
     }
+
+    /// Get the current playback queue
+    ///
+    /// Returns the raw queue items from Cider. Filtering for upcoming tracks
+    /// (vs. history/current) is done by the caller.
+    /// Returns an empty Vec if the queue is empty or the format is unexpected.
+    pub async fn get_queue(&self) -> Result<Vec<super::types::QueueItem>, CiderError> {
+        let resp = self
+            .request(reqwest::Method::GET, "/queue")
+            .send()
+            .await?;
+
+        let status = resp.status();
+        if status == reqwest::StatusCode::NOT_FOUND || status == reqwest::StatusCode::NO_CONTENT {
+            return Ok(vec![]);
+        }
+
+        // The queue endpoint may return a raw JSON array or a wrapped response
+        let text = resp.text().await?;
+        match serde_json::from_str::<Vec<super::types::QueueItem>>(&text) {
+            Ok(items) => Ok(items),
+            Err(_) => {
+                // Graceful degradation — queue format unknown or empty
+                Ok(vec![])
+            }
+        }
+    }
 }
 
 impl Default for CiderClient {

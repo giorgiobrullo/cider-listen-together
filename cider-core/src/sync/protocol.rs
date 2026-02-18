@@ -110,6 +110,16 @@ pub enum SyncMessage {
         track_id: Option<String>,
         playback: PlaybackInfo,
     },
+
+    // === Queue Sync ===
+    /// Full queue state broadcast from host to all listeners
+    QueueUpdate { queue: Vec<TrackInfo> },
+
+    /// Request from a listener to add a song to the host's queue
+    QueueAdd {
+        song_id: String,
+        requested_by: String,
+    },
 }
 
 impl SyncMessage {
@@ -122,6 +132,7 @@ impl SyncMessage {
                 | SyncMessage::Seek { .. }
                 | SyncMessage::TrackChange { .. }
                 | SyncMessage::TransferHost { .. }
+                | SyncMessage::QueueUpdate { .. }
         )
     }
 }

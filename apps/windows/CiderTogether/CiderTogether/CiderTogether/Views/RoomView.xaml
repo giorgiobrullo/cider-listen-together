@@ -93,6 +93,19 @@
             </ItemsRepeater>
         </StackPanel>
 
+        <!-- Shared Queue -->
+        <StackPanel x:Name="QueuePanel"
+                    Spacing="4"
+                    MaxWidth="300"
+                    Visibility="Collapsed">
+            <TextBlock x:Name="QueueHeader"
+                       Text="Up Next (0)"
+                       Style="{StaticResource CaptionTextBlockStyle}"
+                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+
+            <ItemsRepeater x:Name="QueueList"/>
+        </StackPanel>
+
         <!-- Error Dialog -->
         <ContentDialog x:Name="ErrorDialog"
                        Title="Error"

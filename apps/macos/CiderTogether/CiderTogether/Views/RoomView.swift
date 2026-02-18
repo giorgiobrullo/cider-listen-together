@@ -27,6 +27,11 @@ struct RoomView: View {
             if let roomState = appState.roomState {
                 ParticipantsView(participants: roomState.participants)
             }
+
+            // Queue
+            if let roomState = appState.roomState, !roomState.queue.isEmpty {
+                QueueView(tracks: roomState.queue)
+            }
         }
         .frame(maxWidth: .infinity)
     }
@@ -221,6 +226,81 @@ struct ParticipantBadge: View {
         let hash = participant.displayName.hashValue
         let hue = Double(abs(hash) % 360) / 360.0
         return Color(hue: hue, saturation: 0.5, brightness: 0.6)
+    }
+}
+
+struct QueueView: View {
+    let tracks: [TrackInfo]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Up Next (\(tracks.count))")
+                .font(.caption)
+                .foregroundColor(.secondary)
+
+            VStack(spacing: 2) {
+                ForEach(Array(tracks.prefix(10).enumerated()), id: \.element.songId) { _, track in
+                    QueueTrackRow(track: track)
+                }
+                if tracks.count > 10 {
+                    Text("+ \(tracks.count - 10) more")
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                        .padding(.leading, 8)
+                        .padding(.top, 2)
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+struct QueueTrackRow: View {
+    let track: TrackInfo
+
+    var body: some View {
+        HStack(spacing: 8) {
+            AsyncImage(url: URL(string: track.artworkUrl)) { phase in
+                switch phase {
+                case .success(let image):
+                    image.resizable().aspectRatio(contentMode: .fill)
+                default:
+                    Image(systemName: "music.note")
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
+            }
+            .frame(width: 32, height: 32)
+            .cornerRadius(4)
+
+            VStack(alignment: .leading, spacing: 1) {
+                Text(track.name)
+                    .font(.caption)
+                    .lineLimit(1)
+
+                Text(track.artist)
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+                    .lineLimit(1)
+            }
+
+            Spacer()
+
+            Text(formatDuration(ms: track.durationMs))
+                .font(.caption2)
+                .foregroundColor(.secondary)
+                .monospacedDigit()
+        }
+        .padding(.horizontal, 4)
+        .padding(.vertical, 3)
+    }
+
+    private func formatDuration(ms: UInt64) -> String {
+        let secs = ms / 1000
+        let m = secs / 60
+        let s = secs % 60
+        return String(format: "%d:%02d", m, s)
     }
 }
 

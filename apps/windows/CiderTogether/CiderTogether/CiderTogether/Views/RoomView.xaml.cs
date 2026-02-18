@@ -2,6 +2,7 @@ using Microsoft.UI;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
+using Microsoft.UI.Xaml.Media.Imaging;
 using Microsoft.UI.Xaml.Shapes;
 using Windows.ApplicationModel.DataTransfer;
 using CiderTogether.Models;
@@ -73,6 +74,9 @@ public sealed partial class RoomView : Page
         // Update participants
         ParticipantsHeader.Text = $"Listening ({roomState.participants.Length})";
         UpdateParticipantsList(roomState.participants);
+
+        // Update queue
+        UpdateQueueList(roomState.queue);
     }
 
     private void UpdateParticipantsList(Participant[] participants)
@@ -276,5 +280,121 @@ public sealed partial class RoomView : Page
     private void Next_Click(object sender, RoutedEventArgs e)
     {
         _appState.Next();
+    }
+
+    private void UpdateQueueList(TrackInfo[] queue)
+    {
+        QueuePanel.Visibility = queue.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
+
+        if (queue.Length == 0) return;
+
+        var displayCount = Math.Min(queue.Length, 10);
+        QueueHeader.Text = $"Up Next ({queue.Length})";
+
+        var rows = new List<FrameworkElement>();
+        for (int i = 0; i < displayCount; i++)
+        {
+            rows.Add(CreateQueueRow(queue[i]));
+        }
+
+        if (queue.Length > 10)
+        {
+            rows.Add(new TextBlock
+            {
+                Text = $"+ {queue.Length - 10} more",
+                Style = (Style)Application.Current.Resources["CaptionTextBlockStyle"],
+                Foreground = (Brush)Application.Current.Resources["TextFillColorSecondaryBrush"],
+                Margin = new Thickness(8, 2, 0, 0)
+            });
+        }
+
+        QueueList.ItemsSource = rows;
+    }
+
+    private static Grid CreateQueueRow(TrackInfo track)
+    {
+        var grid = new Grid { Padding = new Thickness(4, 3, 4, 3) };
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(36) });
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+        // Artwork thumbnail
+        var artworkBorder = new Border
+        {
+            Width = 32,
+            Height = 32,
+            CornerRadius = new CornerRadius(4),
+            Background = (Brush)Application.Current.Resources["CardBackgroundFillColorDefaultBrush"]
+        };
+
+        if (!string.IsNullOrEmpty(track.artworkUrl))
+        {
+            var artworkImage = new Image
+            {
+                Width = 32,
+                Height = 32,
+                Stretch = Stretch.UniformToFill,
+                Source = new BitmapImage(new Uri(track.artworkUrl))
+            };
+            artworkBorder.Child = artworkImage;
+        }
+        else
+        {
+            artworkBorder.Child = new FontIcon
+            {
+                Glyph = "\uE8D6", // Music note
+                FontSize = 14,
+                Foreground = (Brush)Application.Current.Resources["TextFillColorSecondaryBrush"],
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+        }
+        Grid.SetColumn(artworkBorder, 0);
+        grid.Children.Add(artworkBorder);
+
+        // Track info
+        var infoStack = new StackPanel
+        {
+            VerticalAlignment = VerticalAlignment.Center,
+            Margin = new Thickness(8, 0, 8, 0)
+        };
+        infoStack.Children.Add(new TextBlock
+        {
+            Text = track.name,
+            Style = (Style)Application.Current.Resources["CaptionTextBlockStyle"],
+            MaxLines = 1,
+            TextTrimming = TextTrimming.CharacterEllipsis
+        });
+        infoStack.Children.Add(new TextBlock
+        {
+            Text = track.artist,
+            Style = (Style)Application.Current.Resources["CaptionTextBlockStyle"],
+            Opacity = 0.6,
+            MaxLines = 1,
+            TextTrimming = TextTrimming.CharacterEllipsis
+        });
+        Grid.SetColumn(infoStack, 1);
+        grid.Children.Add(infoStack);
+
+        // Duration
+        var duration = new TextBlock
+        {
+            Text = FormatDuration(track.durationMs),
+            Style = (Style)Application.Current.Resources["CaptionTextBlockStyle"],
+            Opacity = 0.6,
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        Grid.SetColumn(duration, 2);
+        grid.Children.Add(duration);
+
+        return grid;
+    }
+
+    private static string FormatDuration(ulong ms)
+    {
+        var secs = ms / 1000;
+        var m = secs / 60;
+        var s = secs % 60;
+        return $"{m}:{s:D2}";
     }
 }

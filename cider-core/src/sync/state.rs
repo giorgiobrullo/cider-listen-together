@@ -20,6 +20,8 @@ pub struct RoomState {
     pub current_track: Option<TrackInfo>,
     /// Current playback state
     pub playback: PlaybackInfo,
+    /// Upcoming tracks in the shared queue
+    pub queue: Vec<TrackInfo>,
     /// When we last received a heartbeat from host
     pub last_heartbeat: Instant,
 }
@@ -48,6 +50,7 @@ impl RoomState {
                 position_ms: 0,
                 timestamp_ms: 0,
             },
+            queue: Vec::new(),
             last_heartbeat: Instant::now(),
         }
     }
@@ -115,6 +118,11 @@ impl RoomState {
     /// Update current track
     pub fn update_track(&mut self, track: Option<TrackInfo>) {
         self.current_track = track;
+    }
+
+    /// Update the shared queue
+    pub fn update_queue(&mut self, queue: Vec<TrackInfo>) {
+        self.queue = queue;
     }
 
     /// Check if heartbeat is stale (host might be disconnected)

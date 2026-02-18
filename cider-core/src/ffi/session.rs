@@ -39,6 +39,8 @@ pub struct Session {
     signaling: Arc<RwLock<crate::network::SignalingClient>>,
     /// Custom bootstrap/relay nodes (if empty, uses defaults)
     bootstrap_nodes: Arc<RwLock<Vec<String>>>,
+    /// Last broadcasted queue hash (for detecting queue changes)
+    last_broadcast_queue_hash: Arc<RwLock<u64>>,
 }
 
 #[uniffi::export]
@@ -82,6 +84,7 @@ impl Session {
             seek_calibrator: seek_calibrator::new_shared_calibrator(),
             signaling: Arc::new(RwLock::new(crate::network::SignalingClient::new())),
             bootstrap_nodes: Arc::new(RwLock::new(Vec::new())),
+            last_broadcast_queue_hash: Arc::new(RwLock::new(0)),
         }
     }
 
@@ -450,6 +453,12 @@ impl Session {
             *last_track = None;
         }
 
+        // Clear queue state
+        {
+            let mut hash = self.last_broadcast_queue_hash.write().unwrap();
+            *hash = 0;
+        }
+
         // Notify callback
         if let Some(cb) = self.callback.read().unwrap().as_ref() {
             cb.on_disconnected();
@@ -597,6 +606,39 @@ impl Session {
         self.runtime.block_on(async {
             cider.previous().await.map_err(|e| CoreError::CiderApiError(e.to_string()))
         })
+    }
+
+    /// Request adding a song to the shared queue.
+    /// If host, adds directly to Cider's queue via play_later.
+    /// If listener, sends a QueueAdd request to the host.
+    pub fn request_queue_add(&self, song_id: String) -> Result<(), CoreError> {
+        let room = self.room.read().unwrap();
+        let state = room.state().ok_or(CoreError::NotInRoom)?;
+
+        if state.is_host() {
+            // Host adds directly to Cider queue
+            let cider = self.cider.read().unwrap().clone();
+            let song_id_clone = song_id.clone();
+            drop(room);
+            self.runtime.block_on(async {
+                cider.play_later("songs", &song_id_clone)
+                    .await
+                    .map_err(|e| CoreError::CiderApiError(e.to_string()))
+            })
+        } else {
+            // Listener sends request to host
+            let local_peer_id = state.local_peer_id.clone();
+            drop(room);
+
+            if let Some(handle) = self.network_handle.read().unwrap().as_ref() {
+                let msg = SyncMessage::QueueAdd {
+                    song_id,
+                    requested_by: local_peer_id,
+                };
+                handle.broadcast(msg).map_err(|e| CoreError::NetworkError(e.to_string()))?;
+            }
+            Ok(())
+        }
     }
 
     /// Get current room state
@@ -799,6 +841,7 @@ impl Session {
         let network_handle = Arc::clone(&self.network_handle);
         let callback = Arc::clone(&self.callback);
         let last_track_id = Arc::clone(&self.last_broadcast_track_id);
+        let last_queue_hash = Arc::clone(&self.last_broadcast_queue_hash);
 
         self.runtime.spawn(async move {
             info!("Host broadcast loop started");
@@ -927,6 +970,94 @@ impl Session {
                             position_ms,
                             timestamp_ms: current_time_ms(),
                         });
+                    }
+                }
+
+                // Poll queue every cycle (local HTTP call is cheap), only broadcast on change
+                {
+                    let cider_client = cider.read().unwrap().clone();
+                    match cider_client.get_queue().await {
+                        Ok(raw_items) => {
+                            // Find the currently playing item index
+                            let current_idx = raw_items.iter().position(|item| {
+                                item.state.as_ref()
+                                    .and_then(|s| s.current)
+                                    .map(|c| c == 2)
+                                    .unwrap_or(false)
+                            });
+
+                            // Everything after the current track is upcoming
+                            let upcoming: Vec<crate::sync::TrackInfo> = raw_items
+                                .iter()
+                                .skip(current_idx.map(|i| i + 1).unwrap_or(0))
+                                .filter_map(|item| {
+                                    let attrs = item.attributes.as_ref()?;
+                                    let song_id = attrs.play_params.as_ref()
+                                        .map(|p| p.id.clone())?;
+
+                                    Some(crate::sync::TrackInfo {
+                                        song_id,
+                                        name: attrs.name.clone(),
+                                        artist: attrs.artist_name.clone(),
+                                        album: attrs.album_name.clone(),
+                                        artwork_url: attrs.artwork.as_ref()
+                                            .map(|a| a.url
+                                                .replace("{w}", "600")
+                                                .replace("{h}", "600")
+                                                .replace("/{w}x{h}", "/600x600"))
+                                            .unwrap_or_default(),
+                                        duration_ms: attrs.duration_in_millis,
+                                    })
+                                })
+                                .collect();
+
+                            // Hash song_ids to detect changes
+                            use std::hash::{Hash, Hasher};
+                            use std::collections::hash_map::DefaultHasher;
+                            let mut hasher = DefaultHasher::new();
+                            for t in &upcoming {
+                                t.song_id.hash(&mut hasher);
+                            }
+                            let new_hash = hasher.finish();
+
+                            let queue_changed = {
+                                let lh = last_queue_hash.read().unwrap();
+                                *lh != new_hash
+                            };
+
+                            if queue_changed {
+                                *last_queue_hash.write().unwrap() = new_hash;
+
+                                // Update local room state
+                                {
+                                    let mut r = room.write().unwrap();
+                                    if let Some(state) = r.state_mut() {
+                                        state.update_queue(upcoming.clone());
+                                    }
+                                }
+
+                                // Broadcast to listeners
+                                if let Some(handle) = network_handle.read().unwrap().as_ref() {
+                                    let msg = SyncMessage::QueueUpdate {
+                                        queue: upcoming.clone(),
+                                    };
+                                    let _ = handle.broadcast(msg);
+                                }
+
+                                // Notify host's own UI
+                                if let Some(cb) = callback.read().unwrap().as_ref() {
+                                    let r = room.read().unwrap();
+                                    if let Some(state) = r.state() {
+                                        cb.on_room_state_changed(RoomState::from(state));
+                                    }
+                                }
+
+                                debug!("Broadcasted queue update: {} upcoming tracks", upcoming.len());
+                            }
+                        }
+                        Err(e) => {
+                            debug!("Failed to fetch queue: {}", e);
+                        }
                     }
                 }
 

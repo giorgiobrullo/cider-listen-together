@@ -438,7 +438,8 @@ public partial class AppState : ObservableObject
                 localPeerId: RoomState.localPeerId,
                 participants: RoomState.participants,
                 currentTrack: track,
-                playback: RoomState.playback
+                playback: RoomState.playback,
+                queue: RoomState.queue
             );
         }
     }
@@ -456,7 +457,8 @@ public partial class AppState : ObservableObject
                 localPeerId: RoomState.localPeerId,
                 participants: RoomState.participants,
                 currentTrack: RoomState.currentTrack,
-                playback: playback
+                playback: playback,
+                queue: RoomState.queue
             );
         }
     }

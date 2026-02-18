@@ -588,6 +588,13 @@ public protocol SessionProtocol: AnyObject, Sendable {
     func leaveRoom() throws 
     
     /**
+     * Request adding a song to the shared queue.
+     * If host, adds directly to Cider's queue via play_later.
+     * If listener, sends a QueueAdd request to the host.
+     */
+    func requestQueueAdd(songId: String) throws 
+    
+    /**
      * Set custom bootstrap/relay nodes
      * Must be called before creating/joining a room
      * Format: "/ip4/127.0.0.1/tcp/4001/p2p/PEER_ID" or "/ip4/YOUR_IP/tcp/4001/p2p/PEER_ID"
@@ -834,6 +841,19 @@ open func joinRoom(roomCode: String, displayName: String)throws   {try rustCallW
 open func leaveRoom()throws   {try rustCallWithError(FfiConverterTypeCoreError_lift) {
     uniffi_cider_core_fn_method_session_leave_room(
             self.uniffiCloneHandle(),$0
+    )
+}
+}
+    
+    /**
+     * Request adding a song to the shared queue.
+     * If host, adds directly to Cider's queue via play_later.
+     * If listener, sends a QueueAdd request to the host.
+     */
+open func requestQueueAdd(songId: String)throws   {try rustCallWithError(FfiConverterTypeCoreError_lift) {
+    uniffi_cider_core_fn_method_session_request_queue_add(
+            self.uniffiCloneHandle(),
+        FfiConverterString.lower(songId),$0
     )
 }
 }
@@ -1266,16 +1286,18 @@ public struct RoomState: Equatable, Hashable {
     public var participants: [Participant]
     public var currentTrack: TrackInfo?
     public var playback: PlaybackState
+    public var queue: [TrackInfo]
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
-    public init(roomCode: String, localPeerId: String, hostPeerId: String, participants: [Participant], currentTrack: TrackInfo?, playback: PlaybackState) {
+    public init(roomCode: String, localPeerId: String, hostPeerId: String, participants: [Participant], currentTrack: TrackInfo?, playback: PlaybackState, queue: [TrackInfo]) {
         self.roomCode = roomCode
         self.localPeerId = localPeerId
         self.hostPeerId = hostPeerId
         self.participants = participants
         self.currentTrack = currentTrack
         self.playback = playback
+        self.queue = queue
     }
 
     
@@ -1297,7 +1319,8 @@ public struct FfiConverterTypeRoomState: FfiConverterRustBuffer {
                 hostPeerId: FfiConverterString.read(from: &buf), 
                 participants: FfiConverterSequenceTypeParticipant.read(from: &buf), 
                 currentTrack: FfiConverterOptionTypeTrackInfo.read(from: &buf), 
-                playback: FfiConverterTypePlaybackState.read(from: &buf)
+                playback: FfiConverterTypePlaybackState.read(from: &buf), 
+                queue: FfiConverterSequenceTypeTrackInfo.read(from: &buf)
         )
     }
 
@@ -1308,6 +1331,7 @@ public struct FfiConverterTypeRoomState: FfiConverterRustBuffer {
         FfiConverterSequenceTypeParticipant.write(value.participants, into: &buf)
         FfiConverterOptionTypeTrackInfo.write(value.currentTrack, into: &buf)
         FfiConverterTypePlaybackState.write(value.playback, into: &buf)
+        FfiConverterSequenceTypeTrackInfo.write(value.queue, into: &buf)
     }
 }
 
@@ -2166,6 +2190,31 @@ fileprivate struct FfiConverterSequenceTypeParticipant: FfiConverterRustBuffer {
     }
 }
 
+#if swift(>=5.8)
+@_documentation(visibility: private)
+#endif
+fileprivate struct FfiConverterSequenceTypeTrackInfo: FfiConverterRustBuffer {
+    typealias SwiftType = [TrackInfo]
+
+    public static func write(_ value: [TrackInfo], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeTrackInfo.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [TrackInfo] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [TrackInfo]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeTrackInfo.read(from: &buf))
+        }
+        return seq
+    }
+}
+
 private enum InitializationResult {
     case ok
     case contractVersionMismatch
@@ -2215,6 +2264,9 @@ private let initializationResult: InitializationResult = {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_cider_core_checksum_method_session_leave_room() != 60146) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_cider_core_checksum_method_session_request_queue_add() != 28992) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_cider_core_checksum_method_session_set_bootstrap_nodes() != 19665) {

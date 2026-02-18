@@ -69,6 +69,14 @@ pub async fn handle_network_event(
                             playback: state.playback.clone(),
                         };
                         let _ = handle.broadcast(msg);
+
+                        // Also send current queue to new peer
+                        if !state.queue.is_empty() {
+                            let queue_msg = SyncMessage::QueueUpdate {
+                                queue: state.queue.clone(),
+                            };
+                            let _ = handle.broadcast(queue_msg);
+                        }
                     }
                 }
             }
@@ -285,6 +293,33 @@ pub async fn handle_sync_message(
         }
 
         SyncMessage::JoinResponse { .. } => {}
+
+        SyncMessage::QueueUpdate { queue } => {
+            if is_from_host(&from, room) {
+                handle_queue_update(queue, room, callback);
+            } else {
+                warn!("Ignoring QueueUpdate from non-host: {}", from);
+            }
+        }
+
+        SyncMessage::QueueAdd { song_id, requested_by } => {
+            // Only host processes QueueAdd requests
+            let is_host = {
+                let r = room.read().unwrap();
+                r.state().map(|s| s.is_host()).unwrap_or(false)
+            };
+
+            if is_host {
+                info!("QueueAdd: {} requested by {}", song_id, requested_by);
+                let cider_client = cider.read().unwrap().clone();
+                tokio::spawn(async move {
+                    if let Err(e) = cider_client.play_later("songs", &song_id).await {
+                        warn!("QueueAdd: play_later failed: {}", e);
+                    }
+                    // Next queue poll will pick up the change and broadcast it
+                });
+            }
+        }
     }
 }
 
@@ -821,6 +856,21 @@ async fn handle_heartbeat(
             if let Some(cb) = callback.read().unwrap().as_ref() {
                 cb.on_playback_changed(PlaybackState::from(&playback));
             }
+        }
+    }
+}
+
+fn handle_queue_update(
+    queue: Vec<crate::sync::TrackInfo>,
+    room: &Arc<RwLock<Room>>,
+    callback: &Arc<RwLock<Option<Arc<dyn SessionCallback>>>>,
+) {
+    let mut room_guard = room.write().unwrap();
+    if let Some(state) = room_guard.state_mut() {
+        state.update_queue(queue);
+
+        if let Some(cb) = callback.read().unwrap().as_ref() {
+            cb.on_room_state_changed(RoomState::from(&*state));
         }
     }
 }

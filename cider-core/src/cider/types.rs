@@ -190,3 +190,38 @@ pub struct VolumeRequest {
 pub struct RatingRequest {
     pub rating: i8,
 }
+
+/// A single item in the Cider playback queue (Apple Music API format)
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct QueueItem {
+    /// Track attributes
+    #[serde(default)]
+    pub attributes: Option<QueueItemAttributes>,
+
+    /// State indicating if this is the currently playing item
+    #[serde(rename = "_state", default)]
+    pub state: Option<QueueItemState>,
+}
+
+/// Attributes of a queue item
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct QueueItemAttributes {
+    pub name: String,
+    pub artist_name: String,
+    pub album_name: String,
+    pub duration_in_millis: u64,
+    #[serde(default)]
+    pub artwork: Option<Artwork>,
+    #[serde(default)]
+    pub play_params: Option<PlayParams>,
+}
+
+/// State of a queue item
+#[derive(Debug, Clone, Deserialize)]
+pub struct QueueItemState {
+    /// 2 = currently playing
+    #[serde(default)]
+    pub current: Option<u8>,
+}

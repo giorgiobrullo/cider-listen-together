@@ -407,6 +407,11 @@ void uniffi_cider_core_fn_method_session_join_room(uint64_t ptr, RustBuffer room
 void uniffi_cider_core_fn_method_session_leave_room(uint64_t ptr, RustCallStatus *_Nonnull out_status
 );
 #endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_CIDER_CORE_FN_METHOD_SESSION_REQUEST_QUEUE_ADD
+#define UNIFFI_FFIDEF_UNIFFI_CIDER_CORE_FN_METHOD_SESSION_REQUEST_QUEUE_ADD
+void uniffi_cider_core_fn_method_session_request_queue_add(uint64_t ptr, RustBuffer song_id, RustCallStatus *_Nonnull out_status
+);
+#endif
 #ifndef UNIFFI_FFIDEF_UNIFFI_CIDER_CORE_FN_METHOD_SESSION_SET_BOOTSTRAP_NODES
 #define UNIFFI_FFIDEF_UNIFFI_CIDER_CORE_FN_METHOD_SESSION_SET_BOOTSTRAP_NODES
 void uniffi_cider_core_fn_method_session_set_bootstrap_nodes(uint64_t ptr, RustBuffer nodes, RustCallStatus *_Nonnull out_status
@@ -791,6 +796,12 @@ uint16_t uniffi_cider_core_checksum_method_session_join_room(void
 #ifndef UNIFFI_FFIDEF_UNIFFI_CIDER_CORE_CHECKSUM_METHOD_SESSION_LEAVE_ROOM
 #define UNIFFI_FFIDEF_UNIFFI_CIDER_CORE_CHECKSUM_METHOD_SESSION_LEAVE_ROOM
 uint16_t uniffi_cider_core_checksum_method_session_leave_room(void
+    
+);
+#endif
+#ifndef UNIFFI_FFIDEF_UNIFFI_CIDER_CORE_CHECKSUM_METHOD_SESSION_REQUEST_QUEUE_ADD
+#define UNIFFI_FFIDEF_UNIFFI_CIDER_CORE_CHECKSUM_METHOD_SESSION_REQUEST_QUEUE_ADD
+uint16_t uniffi_cider_core_checksum_method_session_request_queue_add(void
     
 );
 #endif

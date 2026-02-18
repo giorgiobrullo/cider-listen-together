@@ -133,6 +133,7 @@ pub struct RoomState {
     pub participants: Vec<Participant>,
     pub current_track: Option<TrackInfo>,
     pub playback: PlaybackState,
+    pub queue: Vec<TrackInfo>,
 }
 
 impl From<&InternalRoomState> for RoomState {
@@ -144,6 +145,7 @@ impl From<&InternalRoomState> for RoomState {
             participants: r.participant_list().into_iter().map(Participant::from).collect(),
             current_track: r.current_track.as_ref().map(|t| TrackInfo::from(t.clone())),
             playback: PlaybackState::from(&r.playback),
+            queue: r.queue.iter().map(|t| TrackInfo::from(t.clone())).collect(),
         }
     }
 }
