@@ -31,11 +31,11 @@ impl RoomCode {
     /// Generate a random room code using cryptographically secure RNG
     pub fn random() -> Self {
         use rand::Rng;
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
 
         let mut code = String::with_capacity(CODE_LENGTH);
         for _ in 0..CODE_LENGTH {
-            let idx = rng.gen_range(0..ALPHABET.len());
+            let idx = rng.random_range(0..ALPHABET.len());
             code.push(ALPHABET[idx] as char);
         }
         RoomCode(code)
