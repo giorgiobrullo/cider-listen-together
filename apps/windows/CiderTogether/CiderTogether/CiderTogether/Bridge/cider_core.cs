@@ -2243,7 +2243,7 @@ class FfiConverterTypeSession: FfiConverter<Session, IntPtr> {
 /// <param name="rejected">
 /// Whether this sample was rejected as outlier
 /// </param>
-public recordCalibrationSample (
+public record CalibrationSample (
     /// <summary>
     /// Drift measured after seek (positive = ahead, negative = behind)
     /// </summary>
@@ -2296,7 +2296,7 @@ class FfiConverterTypeCalibrationSample: FfiConverterRustBuffer<CalibrationSampl
 /// <summary>
 /// Current playback info (for polling) exposed via FFI
 /// </summary>
-public recordCurrentPlayback (
+public record CurrentPlayback (
     TrackInfo? @track, 
     bool @isPlaying
 ) {
@@ -2329,7 +2329,7 @@ class FfiConverterTypeCurrentPlayback: FfiConverterRustBuffer<CurrentPlayback> {
 /// <summary>
 /// Participant exposed via FFI
 /// </summary>
-public recordParticipant (
+public record Participant (
     string @peerId, 
     string @displayName, 
     bool @isHost
@@ -2366,7 +2366,7 @@ class FfiConverterTypeParticipant: FfiConverterRustBuffer<Participant> {
 /// <summary>
 /// Playback state exposed via FFI
 /// </summary>
-public recordPlaybackState (
+public record PlaybackState (
     bool @isPlaying, 
     ulong @positionMs, 
     ulong @timestampMs
@@ -2403,7 +2403,7 @@ class FfiConverterTypePlaybackState: FfiConverterRustBuffer<PlaybackState> {
 /// <summary>
 /// Room state exposed via FFI
 /// </summary>
-public recordRoomState (
+public record RoomState (
     string @roomCode, 
     string @localPeerId, 
     string @hostPeerId, 
@@ -2478,7 +2478,7 @@ class FfiConverterTypeRoomState: FfiConverterRustBuffer<RoomState> {
 /// <param name="sample_history">
 /// Recent calibration samples (newest last)
 /// </param>
-public recordSyncStatus (
+public record SyncStatus (
     /// <summary>
     /// Drift in milliseconds (positive = ahead of host, negative = behind)
     /// </summary>
@@ -2553,7 +2553,7 @@ class FfiConverterTypeSyncStatus: FfiConverterRustBuffer<SyncStatus> {
 /// <summary>
 /// Track information exposed via FFI
 /// </summary>
-public recordTrackInfo (
+public record TrackInfo (
     string @songId, 
     string @name, 
     string @artist, 
